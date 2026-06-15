@@ -17,6 +17,7 @@ import com.looper.ads.databinding.DialogWelcomeBackBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 class WelcomeBackDialog : DialogFragment() {
     private var _binding: DialogWelcomeBackBinding? = null
@@ -59,9 +60,9 @@ class WelcomeBackDialog : DialogFragment() {
 
     private fun delayFake() {
         viewLifecycleOwner.lifecycleScope.launch {
-            delay(2000)
+            delay(2000.milliseconds)
             AdsManager.handleTemporarilyAppOpenResumed(isEnable = true)
-            delay(250)
+            delay(250.milliseconds)
 
             AdsManager.showAdOpen(requireActivity())
 

@@ -17,6 +17,7 @@ import com.zenith.adsdk.format.RewardedAd
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.milliseconds
 
 fun loadRewardedAd(
     activity: ComponentActivity,
@@ -83,7 +84,7 @@ object RewardedAdController {
             }
 
             val rewardedAd = try {
-                withTimeout(timeOut) {
+                withTimeout(timeOut.milliseconds) {
                     RewardedAdPreload.getPreloadRewardedAd(
                         context = activity,
                         adType = adType

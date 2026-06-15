@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 object AppOpenSplashAd {
     private val scope by lazy {
@@ -48,11 +49,11 @@ object AppOpenSplashAd {
         if (appOpenAdDeferred != null || !isSupportAds) return
 
         appOpenAdDeferred = scope.async {
-            val appOpenAd = withTimeoutOrNull(timeOut) {
+            val appOpenAd = withTimeoutOrNull(timeOut.milliseconds) {
                 loadAppOpenAd(context = context, adUnit = adUnit)
             }
 
-            delay(3000)
+            delay(3000.milliseconds)
             onAdLoadCompleted(appOpenAd != null)
 
             appOpenAd
@@ -75,7 +76,7 @@ object AppOpenSplashAd {
 
         showingJob = scope.launch {
             val appOpenAd = try {
-                withTimeout(timeOut) {
+                withTimeout(timeOut.milliseconds) {
                     deferred.await()
                 }.also {
                     if (it == null) appOpenAdDeferred = null
@@ -108,7 +109,7 @@ object AppOpenSplashAd {
                 co.safeResume(false)
             }
 
-            override fun onPaidEvent(currencyCode: String,valueMicros: Long) {
+            override fun onPaidEvent(currencyCode: String, valueMicros: Long) {
                 AdjustManager.trackAdRevenue(
                     revenue = valueMicros,
                     currency = currencyCode

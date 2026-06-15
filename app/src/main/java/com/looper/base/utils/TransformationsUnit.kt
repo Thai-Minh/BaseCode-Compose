@@ -3,6 +3,7 @@ package com.looper.base.utils
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
 object TransformationsUnit {
 
@@ -20,7 +21,7 @@ object TransformationsUnit {
         result.addSource(sourceX) { x ->
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(x)
             }
         }
@@ -42,7 +43,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(sourceX.value, sourceY.value)
             }
         }
@@ -68,7 +69,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(sourceX.value, sourceY.value, sourceZ.value)
             }
         }
@@ -96,7 +97,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(sourceA.value, sourceB.value, sourceC.value, sourceD.value)
             }
         }
@@ -126,7 +127,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(
                     sourceA.value, sourceB.value, sourceC.value, sourceD.value, sourceE.value
                 )
@@ -160,7 +161,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(
                     sourceA.value, sourceB.value, sourceC.value, sourceD.value, sourceE.value, sourceF.value
                 )
@@ -196,7 +197,7 @@ object TransformationsUnit {
         val update = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(50)
+                delay(50.milliseconds)
                 result.value = mapFunction(
                     sourceA.value, sourceB.value, sourceC.value, sourceD.value,
                     sourceE.value, sourceF.value, sourceG.value

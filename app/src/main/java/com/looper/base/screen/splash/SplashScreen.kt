@@ -8,12 +8,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SplashScreen(navigate: () -> Unit) {
 
     LaunchedEffect(key1 = Unit) {
-        delay(2000)
+        delay(2000.milliseconds)
         navigate()
     }
 
