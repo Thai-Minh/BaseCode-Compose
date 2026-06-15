@@ -59,6 +59,7 @@ import com.zenith.adapter.format.UnifiedNativeAdRender
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 import com.zenith.adsdk.MediationAd
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 data class NativeSpace internal constructor(
     val start: Dp = 0.dp,
@@ -112,15 +113,11 @@ fun NativeAd(
 
     val mediationAd = MediationAd.getShared()
 
-    val adUnitList = listOfNotNull(adType.adUnitId, adType.adUnitBackup1, adType.adUnitBackup2)
-
-    val canShowAny = supportAds && mediationAd != null && adUnitList.any { id ->
-        mediationAd.getAdUnit(id) != null
-    }
+    val canShowAny = supportAds && mediationAd != null && mediationAd.getAdUnit(adType.adUnitId) != null
 
     LaunchedEffect(key1 = canShowAny) {
         if (!canShowAny) {
-            delay(50)
+            delay(50.milliseconds)
             onAdFailed()
         }
     }

@@ -31,22 +31,15 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class InterAdState {
     LoadError, LoadSuccess, ShowError, ShowSuccess
 }
 
-enum class InterstitialType(val adUnitId: String, val backup1: String?, val backup2: String?) {
-    Splash(
-        adUnitId = AdUnits.InterstitialSplash2Floor.key,
-        backup1 = AdUnits.InterstitialSplashMedium.key,
-        backup2 = AdUnits.InterstitialSplashAllPrice.key
-    ),
-    InApp(
-        adUnitId = AdUnits.InterstitialInApp2Floor.key,
-        backup1 = AdUnits.InterstitialInAppMedium.key,
-        backup2 = AdUnits.InterstitialInAppAllPrice.key
-    )
+enum class InterstitialType(val adUnitId: String) {
+    Splash(adUnitId = AdUnits.InterstitialSplash.key),
+    InApp(adUnitId = AdUnits.InterstitialInApp.key)
 }
 
 fun loadAndShowInterstitialAd(
@@ -80,12 +73,9 @@ fun loadAndShowInterstitialAd(
     onLoadAdCallback: (isLoadAdSuccess: Boolean) -> Unit = {},
     onShowAdCallback: (isShowAd: Boolean) -> Unit = { }
 ) {
-
     val mediationAd = MediationAd.getShared()
 
-    val ids = listOfNotNull(type.adUnitId, type.backup1, type.backup2)
-
-    val acceptShow = mediationAd != null && ids.any { mediationAd.getAdUnit(it) != null }
+    val acceptShow = mediationAd != null && mediationAd.getAdUnit(type.adUnitId) != null
 
     if (!isSupportAds || !acceptShow) {
         onShowAdCallback(false)
@@ -156,9 +146,8 @@ object InterstitialController {
         onShowAdCallback: (isShowAd: Boolean) -> Unit
     ) {
         val mediationAd = MediationAd.getShared()
-        val ids = listOfNotNull(type.adUnitId, type.backup1, type.backup2)
 
-        val acceptShow = mediationAd != null && ids.any { mediationAd.getAdUnit(it) != null }
+        val acceptShow = mediationAd != null && mediationAd.getAdUnit(type.adUnitId) != null
 
         if (!isSupportAds || !acceptShow) {
             callbackOnMain(
@@ -230,7 +219,7 @@ object InterstitialController {
         val startTime = System.currentTimeMillis()
 
         val interAd = try {
-            withTimeout(timeOut) {
+            withTimeout(timeOut.milliseconds) {
                 async {
                     InterstitialAdPreload.getPreloadInterstitialAd(
                         context = activity,
@@ -245,7 +234,7 @@ object InterstitialController {
         val elapsedTime = System.currentTimeMillis() - startTime
 
         if (elapsedTime < 1000)
-            delay(1000 - elapsedTime)
+            delay((1000 - elapsedTime).milliseconds)
 
         activity.lifecycle.awaitResumed()
 
@@ -284,9 +273,9 @@ object InterstitialController {
 
                 activity.lifecycleScope.launch(Dispatchers.Main) {
                     try {
-                        val isReadyToShow = withTimeoutOrNull(2000) {
+                        val isReadyToShow = withTimeoutOrNull(2000.milliseconds) {
                             while (!activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                                delay(100)
+                                delay(100.milliseconds)
                             }
                             true
                         }

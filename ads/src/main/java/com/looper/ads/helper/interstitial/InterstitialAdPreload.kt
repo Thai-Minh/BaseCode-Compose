@@ -60,9 +60,8 @@ object InterstitialAdPreload {
 
     private fun preloadAd(context: Context, adType: InterstitialType, onLoadAdCallback: (Boolean) -> Unit) {
         mainScope.launch {
-            val ids = listOf(adType.adUnitId, adType.backup1, adType.backup2)
 
-            if (!isSupportAds || ids.all { !MediationUtils.isFullScreenAdDisplayIntervalAccepted(it) }) {
+            if (!isSupportAds || !MediationUtils.isFullScreenAdDisplayIntervalAccepted(adType.adUnitId)) {
                 onLoadAdCallback(false)
                 return@launch
             }
@@ -86,26 +85,21 @@ object InterstitialAdPreload {
         context: Context,
         adType: InterstitialType
     ): InterstitialAd? {
-        val adUnitIds = listOfNotNull(adType.adUnitId, adType.backup1, adType.backup2)
+        if (!isSupportAds) return null
 
-        for (adUnitId in adUnitIds) {
-            if (!isSupportAds) return null
+        val result = suspendCancellableCoroutine {
+            InterstitialAd.load(context, adType.adUnitId, object : InterstitialAdLoadCallback {
+                override fun onAdFailedToLoad(error: AdError) {
+                    it.safeResume(null)
+                }
 
-            val result = suspendCancellableCoroutine {
-                InterstitialAd.load(context, adUnitId, object : InterstitialAdLoadCallback {
-                    override fun onAdFailedToLoad(error: AdError) {
-                        it.safeResume(null)
-                    }
-
-                    override fun onAdLoaded(ad: InterstitialAd, adUnit: String) {
-                        it.safeResume(ad)
-                    }
-                })
-            }
-
-            if (result != null) return result
+                override fun onAdLoaded(ad: InterstitialAd, adUnit: String) {
+                    it.safeResume(ad)
+                }
+            })
         }
-        return null
+
+        return result
     }
 
     private suspend fun getInterstitialAdFromPreload(adType: InterstitialType): InterstitialAd? {

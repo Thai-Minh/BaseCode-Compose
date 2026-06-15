@@ -20,9 +20,6 @@ import kotlinx.coroutines.withContext
 
 enum class NativeAdType(
     val adUnitId: String,
-    val adUnitBackup1: String? = null,
-    val adUnitBackup2: String? = null,
-    val adUnitBackup3: String? = null,
     val removable: Boolean = true,
     val collapsible: Boolean = false,
     val goneAllAfterCollapsible: Boolean = true,
@@ -32,33 +29,26 @@ enum class NativeAdType(
         adUnitId = "",
     ),
     Language1(
-        adUnitId = AdUnits.NativeLanguageFirst2Floor.key,
-        adUnitBackup1 = AdUnits.NativeLanguageFirstMedium.key,
-        adUnitBackup3 = AdUnits.NativeLanguageFirstAllPrice.key,
+        adUnitId = AdUnits.NativeLanguage1.key,
         useCardViewWrapper = true
     ),
     Language2(
-        adUnitId = AdUnits.NativeLanguageSecond2Floor.key,
-        adUnitBackup1 = AdUnits.NativeLanguageSecondMedium.key,
-        adUnitBackup3 = AdUnits.NativeLanguageSecondAllPrice.key,
+        adUnitId = AdUnits.NativeLanguage2.key,
         useCardViewWrapper = true
     ),
     Intro1(
-        adUnitId = AdUnits.NativeIntroFirstAllPrice.key,
+        adUnitId = AdUnits.NativeIntro1.key,
         useCardViewWrapper = true
     ),
     Intro3(
-        adUnitId = AdUnits.NativeIntroThirdAllPrice.key,
+        adUnitId = AdUnits.NativeIntro3.key,
         useCardViewWrapper = true
     ),
     IntroFullScreen(
-        adUnitId = AdUnits.NativeFullIntro2Floor.key,
-        adUnitBackup1 = AdUnits.NativeFullIntroMedium.key
+        adUnitId = AdUnits.NativeFullIntro2.key,
     ),
     Home(
-        adUnitId = AdUnits.NativeHomeCollapsible2Floor.key,
-        adUnitBackup1 = AdUnits.NativeHomeCollapsibleMedium.key,
-        adUnitBackup3 = AdUnits.NativeHomeCollapsibleAllPrice.key,
+        adUnitId = AdUnits.NativeHomeCollapsible.key,
         collapsible = true,
         goneAllAfterCollapsible = false
     )
@@ -154,17 +144,11 @@ object NativeAdPreload {
         context: Context,
         adType: NativeAdType
     ): Pair<UnifiedNativeAdRender, String>? {
+
         if (!isSupportAds) return null
 
-        val adUnitList = listOfNotNull(
-            adType.adUnitId,
-            adType.adUnitBackup1,
-            adType.adUnitBackup2,
-            adType.adUnitBackup3
-        )
-
         return suspendCancellableCoroutine { continuation ->
-            NativeAdLoader.load(context, adUnitList, object : NativeAdLoadCallBack {
+            NativeAdLoader.load(context, adType.adUnitId, object : NativeAdLoadCallBack {
                 override fun onAdFailedToLoad(error: AdError) {
                     continuation.safeResume(null)
 
