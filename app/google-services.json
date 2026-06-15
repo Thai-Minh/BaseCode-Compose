@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17153605291",
+    "project_id": "base-code-compose",
+    "storage_bucket": "base-code-compose.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17153605291:android:01a1441dda63c89eb481ee",
+        "android_client_info": {
+          "package_name": "com.looper.base"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiG4PqYcheut81L3QjK59u8mkZtKuBA4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

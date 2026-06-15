@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Base Code Compose</string>
+
+    <!--for IAP-->
+    <string name="txt_yearly">Yearly</string>
+    <string name="lifetime">Lifetime</string>
+    <string name="weekly">Weekly</string>
+    <string name="monthly">Monthly</string>
+    <string name="service_not_support">Service not support!</string>
+    <string name="service_unavailable">Service Unavailable</string>
+
+    <string name="open_settings">Open Settings</string>
+    <string name="oops_connection_lost">Oops! Connection lost</string>
+    <string name="this_app_requires_an_internet_connection_please_connect_to_wi_fi_or_mobile_data">This app requires an internet connection. Please connect to Wi-Fi or mobile data.</string>
+
+</resources>

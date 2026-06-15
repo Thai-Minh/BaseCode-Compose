@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading_ads">Đang tải quảng cáo…</string>
+    <string name="txt_welcome_back">Chào mừng bạn quay trở lại!</string>
+</resources>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_mcv"
+    android:layout_width="match_parent"
+    android:layout_height="80dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/ad_matrix_native_loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/parent_cl"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#171717"
+            android:orientation="vertical">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/thumb_img"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginVertical="8dp"
+                android:layout_marginStart="8dp"
+                android:scaleType="centerInside"
+                app:cardBackgroundColor="#222222"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="1:1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <View
+                    android:id="@+id/native_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/common_grey_border_8_bg"
+                    android:scaleType="fitCenter" />
+            </androidx.cardview.widget.CardView>
+
+            <View
+                android:id="@+id/native_headline"
+                android:layout_width="0dp"
+                android:layout_height="16dp"
+                android:layout_marginHorizontal="10dp"
+                android:background="@drawable/common_grey_border_8_bg"
+                app:layout_constraintBottom_toTopOf="@id/native_body"
+                app:layout_constraintEnd_toStartOf="@id/native_call_to_action"
+                app:layout_constraintStart_toEndOf="@id/thumb_img"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.5"
+                app:layout_constraintVertical_chainStyle="packed" />
+
+            <View
+                android:id="@+id/native_body"
+                android:layout_width="0dp"
+                android:layout_height="16dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/common_grey_border_8_bg"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="@+id/native_headline"
+                app:layout_constraintStart_toStartOf="@+id/native_headline"
+                app:layout_constraintTop_toBottomOf="@+id/native_headline" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/native_call_to_action"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/ripple_round_button_gradient"
+                android:gravity="center"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/white"
+                android:textSize="14dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="OPEN" />
+
+            <com.zenith.adapter.ui.AdvertiserView
+                android:id="@+id/native_sponsored_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:attribution_src="@drawable/ic_ad_top_left"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.facebook.shimmer.ShimmerFrameLayout>
+</androidx.cardview.widget.CardView>

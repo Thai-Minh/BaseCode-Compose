@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#171717"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <FrameLayout
+        android:id="@+id/native_media_group"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#434343"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:layout_constraintDimensionRatio="2:1"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" >
+
+        <com.zenith.adapter.ui.MediaView
+            android:id="@+id/native_media_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#434343"
+            app:layout_constraintDimensionRatio="2:1"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </FrameLayout>
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/collapsible_btn"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerInside"
+        android:background="?selectableItemBackground"
+        app:layout_constraintTop_toTopOf="@+id/native_media_group"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:srcCompat="@drawable/ic_ad_collapsible"/>
+
+    <LinearLayout
+        android:id="@+id/info_group"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="#171717"
+        android:paddingVertical="10dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/native_media_group"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/collapsible_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="16dp">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/native_icon_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="8dp"
+                android:layout_marginEnd="6dp"
+                app:cardElevation="0dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#0D000000"
+                tools:visibility="visible"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintVertical_bias="0.4"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent">
+
+                <com.zenith.adapter.ui.MediaView
+                    android:id="@+id/native_icon"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="#222222"
+                    android:scaleType="fitCenter" />
+
+            </androidx.cardview.widget.CardView>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_vertical|start"
+                android:layout_weight="1">
+
+                <TextView
+                    android:id="@+id/native_headline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:maxLines="1"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/native_big_headline_text_size_2"
+                    android:textStyle="bold"
+                    tools:text="@string/native_sample_headline" />
+
+                <TextView
+                    android:id="@+id/native_body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/native_headline"
+                    android:layout_marginTop="@dimen/native_big_body_margin_top_2"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:maxLines="2"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/native_big_body_text_size_2"
+                    tools:text="@string/native_sample_body" />
+
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/native_call_to_action_collapsible_layout"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                tools:visibility="visible"
+                android:visibility="visible"
+                app:layout_constraintStart_toEndOf="@+id/native_headline"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="@+id/native_body">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/native_call_to_action_collapsible"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/native_big_button_height_2"
+                    android:background="@drawable/ripple_round_button_gradient"
+                    android:gravity="center"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingLeft="@dimen/native_big_button_padding_edge"
+                    android:paddingRight="@dimen/native_big_button_padding_edge"
+                    android:text="@string/native_sample_call_to_action"
+                    android:textColor="@color/native_call_to_action_text_color"
+                    android:textSize="@dimen/native_big_button_text_size_2" />
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/native_call_to_action_expand_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            tools:visibility="gone">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/native_call_to_action_expand"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/native_big_button_height_2"
+                android:background="@drawable/ripple_round_button_gradient"
+                android:gravity="center"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:layout_marginTop="10dp"
+                android:paddingLeft="@dimen/native_big_button_padding_edge"
+                android:paddingRight="@dimen/native_big_button_padding_edge"
+                android:text="@string/native_sample_call_to_action"
+                android:textColor="@color/native_call_to_action_text_color"
+                android:textSize="@dimen/native_big_button_text_size_2" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading_ads">Loading Ads…</string>
+    <string name="txt_welcome_back">Welcome Back!</string>
+    <string name="ad" translatable="false">Ad</string>
+</resources>
