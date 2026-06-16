@@ -31,22 +31,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.isVisible
+import com.looper.admob_v2.AdmobAdapter
 import com.looper.ads.AdjustManager
-import com.looper.ads.helper.banner.data.BannerAdType
-import com.looper.ads.helper.banner.data.BannerState
 import com.looper.ads.createAdaptiveBannerShimmerLayout
 import com.looper.ads.createBannerShimmerLayout
-import com.looper.ads.isSupportAds
+import com.looper.ads.helper.banner.data.BannerAdSize
+import com.looper.ads.helper.banner.data.BannerAdType
+import com.looper.ads.helper.banner.data.BannerState
 import com.looper.ads.helper.native_ad.ui.HorizontalBaseLine
+import com.looper.ads.isSupportAds
 import com.zenith.adapter.AdError
 import com.zenith.adapter.AdRequest
 import com.zenith.adapter.AdSize
-import com.zenith.admob.AdmobAdapter
 import com.zenith.adsdk.AdListener
 import com.zenith.adsdk.format.AdView
 import kotlin.math.roundToInt
-import androidx.core.view.isVisible
-import com.looper.ads.helper.banner.data.BannerAdSize
 
 fun BannerAdSize.getAdSize(width: Int = -1): AdSize {
     return when (this) {
@@ -165,8 +165,7 @@ fun BannerAdProvider(
                     AndroidView(
                         factory = { _ ->
                             container
-                        }
-                    )
+                        })
 
                     if (isAdShowing) {
                         viewBelow()
