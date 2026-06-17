@@ -43,7 +43,7 @@ object BannerAdPreload {
                 type = cacheAdType,
                 paddingList = paddingList
             ),
-            extras = cacheAdType.bannerAdSize.getBundle()
+//            extras = cacheAdType.bannerAdSize.getBundle()
         ) {
             addOrReplace(cacheAdType = cacheAdType, bannerState = it)
         }

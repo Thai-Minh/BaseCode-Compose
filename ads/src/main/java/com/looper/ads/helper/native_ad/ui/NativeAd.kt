@@ -188,12 +188,15 @@ fun NativeAd(
                 if (nativeAd is NativeAdState.Success) {
                     val ad = (nativeAd as NativeAdState.Success).nativeAd
 
+                    val enableCollapsible =
+                        MediationAd.getShared()?.isAdUnitCollapsible(adType.adUnitId) == true
+
                     NativeAdView(
                         modifier = customModifier,
                         nativeAd = ad,
                         contentLayoutId = contentLayoutId,
                         adProperty = adProperty,
-                        enableCollapsible = adType.collapsible,
+                        enableCollapsible = enableCollapsible,
                         goneAllAfterCollapsible = adType.goneAllAfterCollapsible,
                         isShowHeadlineAdvertiserLogo = isShowHeadlineAdvertiserLogo,
                         isSupportIconAnim = isSupportIconAnim

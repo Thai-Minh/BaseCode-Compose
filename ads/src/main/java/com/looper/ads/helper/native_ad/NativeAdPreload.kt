@@ -21,7 +21,6 @@ import kotlinx.coroutines.withContext
 enum class NativeAdType(
     val adUnitId: String,
     val removable: Boolean = true,
-    val collapsible: Boolean = false,
     val goneAllAfterCollapsible: Boolean = true,
     val useCardViewWrapper: Boolean = false
 ) {
@@ -49,7 +48,6 @@ enum class NativeAdType(
     ),
     Home(
         adUnitId = AdUnits.NativeHomeCollapsible.key,
-        collapsible = true,
         goneAllAfterCollapsible = false
     )
 }

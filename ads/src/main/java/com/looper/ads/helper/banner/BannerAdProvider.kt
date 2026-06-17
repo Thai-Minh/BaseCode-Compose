@@ -180,7 +180,7 @@ fun loadAd(
     context: Context,
     adUnitId: String,
     adSize: AdSize,
-    extras: Bundle? = null,
+//    extras: Bundle? = null,
     onLoadResult: (state: BannerState) -> Unit = { }
 ) {
 
@@ -204,9 +204,11 @@ fun loadAd(
         }
     })
 
-    val request = if (extras != null) AdRequest.Builder()
-        .addNetworkExtrasBundle(AdmobAdapter::class.java, extras).build()
-    else null
+//    val request = if (extras != null) AdRequest.Builder()
+//        .addNetworkExtrasBundle(AdmobAdapter::class.java, extras).build()
+//    else null
+//
+//    adView.loadAd(request)
 
-    adView.loadAd(request)
+    adView.loadAd()
 }
