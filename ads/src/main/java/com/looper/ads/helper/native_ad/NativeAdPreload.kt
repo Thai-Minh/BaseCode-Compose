@@ -7,6 +7,7 @@ import com.looper.ads.isSupportAds
 import com.looper.ads.safeResume
 import com.zenith.adapter.AdError
 import com.zenith.adapter.format.UnifiedNativeAdRender
+import com.zenith.adsdk.MediationAd
 import com.zenith.adsdk.callback.NativeAdLoadCallBack
 import com.zenith.adsdk.format.NativeAdLoader
 import kotlinx.coroutines.Dispatchers
@@ -67,17 +68,20 @@ object NativeAdPreload {
     private val adCache = MutableStateFlow<Map<String, NativeAdState>>(emptyMap())
 
     fun preload(context: Context, adType: NativeAdType) {
+        runCatching {
+            if (isAlreadyPreloadAd(adType = adType)) return
 
-        if (isAlreadyPreloadAd(adType = adType)) return
-
-        preloadInternal(context = context, adType = adType)
+            preloadInternal(context = context, adType = adType)
+        }.onFailure {
+            // Log to Crashlytics non-fatal if needed
+        }
     }
 
     fun reload(context: Context, adType: NativeAdType) {
         mainScope.launch(Dispatchers.IO) {
+            if (!isSupportAds || queryNativeAd(adType) is NativeAdState.Loading) return@launch
 
-            if (!isSupportAds) return@launch
-
+            updateAdState(adType = adType, state = NativeAdState.Loading)
             runLoadAd(context = context, adType = adType)
         }
     }
@@ -143,7 +147,7 @@ object NativeAdPreload {
         adType: NativeAdType
     ): Pair<UnifiedNativeAdRender, String>? {
 
-        if (!isSupportAds) return null
+        if (!isSupportAds || MediationAd.getShared() == null) return null
 
         return suspendCancellableCoroutine { continuation ->
             NativeAdLoader.load(context, adType.adUnitId, object : NativeAdLoadCallBack {
@@ -190,7 +194,9 @@ object NativeAdPreload {
     }
 
     private fun queryNativeAd(adType: NativeAdType): NativeAdState? {
-        return adCache.value.entries.firstOrNull { it.key == adType.name }?.value
+        return adCache.value.entries.firstOrNull {
+            it.key == adType.name
+        }?.value
     }
 
     fun removeCacheNativeAds(adType: NativeAdType) {

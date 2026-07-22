@@ -7,6 +7,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
@@ -14,10 +15,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -28,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
@@ -38,6 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looper.ads.R
+import com.looper.ads.conditional
 import com.looper.ads.dp2Px
 import com.looper.ads.helper.banner.list.NEXT_SCROLL_INDEX
 import com.looper.ads.helper.banner.list.ORIGINAL_ITEM_HEIGHT_UNLIMITED
@@ -56,26 +62,64 @@ import com.looper.ads.isSupportAds
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 
 enum class NativeAdColumnType(val config: NativeAdConfig) {
-//    DeviceVideoColumnList(
+//    HomeColumnList(
 //        config = NativeAdConfig(
-//            adType = NativeAdType.NativeVideoDeviceColumnList,
+//            adType = NativeAdType.Home,
 //            modifier = Modifier
 //                .fillMaxWidth()
-//                .padding(horizontal = 16.dp, vertical = 8.dp)
-//                .height(140.dp)
+//                .padding(vertical = 8.dp)
+//                .height(250.dp)
 //                .border(
 //                    width = 1.dp,
-//                    color = FFFFFFFF,
+//                    color = Color1A1A1A,
 //                    shape = RoundedCornerShape(8.dp)
 //                )
 //                .clip(RoundedCornerShape(8.dp)),
-//            startAdIndex = NEXT_SCROLL_INDEX,
-//            itemHeightDp = 96,
-//            shimmerLayoutId = R.layout.native_device_video_list_shimmer,
-//            nativeLayoutId = R.layout.native_device_video_list
+//            startAdIndex = 0,
+//            adInterval = 0,
+//            itemHeightDp = 250,
+//            shimmerLayoutId = R.layout.native_language_shimmer_v2_item,
+//            nativeLayoutId = R.layout.native_language_v2_item
 //        )
 //    ),
-
+//    DownloadColumnList(
+//        config = NativeAdConfig(
+//            adType = NativeAdType.Download,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(vertical = 8.dp)
+//                .height(250.dp)
+//                .border(
+//                    width = 1.dp,
+//                    color = Color1A1A1A,
+//                    shape = RoundedCornerShape(8.dp)
+//                )
+//                .clip(RoundedCornerShape(8.dp)),
+//            startAdIndex = 2, // tương tự vị trí sau item đầu tiên vì list này còn có item header theo ngày
+//            itemHeightDp = 150,
+//            shimmerLayoutId = R.layout.native_language_shimmer_v2_item,
+//            nativeLayoutId = R.layout.native_language_v2_item
+//        )
+//    ),
+//    PlayerColumnList(
+//        config = NativeAdConfig(
+//            adType = NativeAdType.Player,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(vertical = 6.dp)
+//                .height(250.dp)
+//                .border(
+//                    width = 1.dp,
+//                    color = Color1A1A1A,
+//                    shape = RoundedCornerShape(8.dp)
+//                )
+//                .clip(RoundedCornerShape(8.dp)),
+//            startAdIndex = 2, // tương tự vị trí sau item đầu tiên vì list này còn có item header theo ngày
+//            itemHeightDp = 150,
+//            shimmerLayoutId = R.layout.native_language_shimmer_v2_item,
+//            nativeLayoutId = R.layout.native_language_v2_item
+//        )
+//    ),
 }
 
 data class NativeAdConfig(
@@ -83,6 +127,7 @@ data class NativeAdConfig(
     val modifier: Modifier = Modifier,
     val space: NativeSpace = NativeSpace(),
     val startAdIndex: Int = 1,
+    val adInterval: Int = 0,
     val itemHeightDp: Int = 142,
     @LayoutRes val shimmerLayoutId: Int,
     @LayoutRes val nativeLayoutId: Int,
@@ -190,7 +235,9 @@ fun LazyAdColumn(
     }
     val app = LocalContext.current.applicationContext as Application
 
-    var size by remember { mutableStateOf(IntSize.Zero) }
+    var size by remember {
+        mutableStateOf(IntSize.Zero)
+    }
 
     val itemHeightDp = config.itemHeightDp
 
@@ -200,48 +247,28 @@ fun LazyAdColumn(
         size.height / app.dp2Px(config.itemHeightDp) + 2
     }
 
-    val viewModel: NativeAdViewModel = viewModel(
-        factory = NativeAdViewModelFactory(app, config.adType)
-    )
+    val adSpace = if (config.adInterval > nativeSpace) {
+        config.adInterval
+    } else {
+        nativeSpace
+    }
 
-    NativeAdLifecycle(viewModel)
+    val viewModel: NativeAdViewModel = viewModel(
+        key = config.adType.name,
+        factory = NativeAdViewModelFactory(
+            app = app,
+            type = config.adType,
+            refreshAd = config.adType.removable
+        )
+    )
 
     val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(initialValue = NativeAdState.Loading)
 
-    val context = LocalContext.current
-    var adView by remember {
-        mutableStateOf<View?>(null)
+    LaunchedEffect(viewModel) {
+        viewModel.forceRefreshAd()
     }
 
-    LaunchedEffect(nativeAd, headerLineColor) {
-        adView = when (nativeAd) {
-            is NativeAdState.Success -> {
-                val view = LayoutInflater.from(context).inflate(
-                    config.nativeLayoutId,
-                    FrameLayout(context),
-                    false
-                )
-                if (headerLineColor != null) {
-                    view.findViewById<TextView>(R.id.ad_matrix_native_headline)
-                        .setTextColor(headerLineColor.toArgb())
-                }
-
-                val baseView = UnifiedNativeAdViewBinder.Builder(view).buildDefault()
-
-                (nativeAd as NativeAdState.Success).nativeAd.render(baseView)
-            }
-
-            is NativeAdState.Loading -> {
-                LayoutInflater.from(context).inflate(
-                    config.shimmerLayoutId,
-                    FrameLayout(context),
-                    false
-                )
-            }
-
-            else -> null
-        }
-    }
+    NativeAdLifecycle(viewModel)
 
     LazyColumn(
         modifier = modifier.onSizeChanged { size = it },
@@ -256,7 +283,7 @@ fun LazyAdColumn(
         val listScope =
             LazyListScopeImpl(
                 startIndex = if (config.startAdIndex == NEXT_SCROLL_INDEX) nativeSpace else config.startAdIndex,
-                adSpace = nativeSpace
+                adSpace = adSpace
             ).apply(content)
 
         for (item in listScope.items) {
@@ -275,16 +302,72 @@ fun LazyAdColumn(
                 }
 
                 is LazyListIntervalContent.Native -> {
-                    val view = adView
-                    if (view != null) {
+                    if (nativeAd !is NativeAdState.Error) {
                         item(item.key) {
-                            NativeWithLineItem(
-                                modifier = config.modifier,
-                                view = view,
-                                space = config.space,
-                                lineAbove = lineAbove,
-                                lineBelow = lineBelow
-                            )
+                            Column(
+                                modifier = Modifier.conditional(
+                                    condition = config.isAnimateItemPlacement,
+                                    ifTrue = {
+                                        animateItem()
+                                    }
+                                )
+                            ) {
+                                when (val nativeAdState = nativeAd) {
+                                    is NativeAdState.Success -> {
+                                        val view = remember(
+                                            item.key,
+                                            nativeAdState,
+                                            config.nativeLayoutId,
+                                            headerLineColor
+                                        ) {
+                                            val nativeView = LayoutInflater.from(app).inflate(
+                                                config.nativeLayoutId,
+                                                FrameLayout(app),
+                                                false
+                                            )
+                                            if (headerLineColor != null) {
+                                                nativeView.findViewById<TextView>(R.id.ad_matrix_native_headline)
+                                                    .setTextColor(headerLineColor.toArgb())
+                                            }
+
+                                            val baseView = UnifiedNativeAdViewBinder.Builder(nativeView)
+                                                .buildDefault(buttonExpanded = R.id.native_call_to_action)
+
+                                            nativeAdState.nativeAd.render(baseView)
+                                        }
+
+                                        NativeWithLineItem(
+                                            modifier = config.modifier,
+                                            view = view,
+                                            space = config.space,
+                                            lineAbove = lineAbove,
+                                            lineBelow = lineBelow
+                                        )
+                                    }
+
+                                    NativeAdState.Loading,
+                                    null -> {
+                                        lineAbove()
+
+                                        BoxSpace(space = config.space) {
+                                            AndroidView(
+                                                factory = { context ->
+                                                    LayoutInflater.from(context).inflate(
+                                                        config.shimmerLayoutId,
+                                                        FrameLayout(context),
+                                                        false
+                                                    )
+                                                },
+                                                modifier = config.modifier
+                                            )
+                                        }
+
+                                        lineBelow()
+                                    }
+
+                                    NativeAdState.Error -> Unit
+                                }
+                            }
                         }
                     }
                 }

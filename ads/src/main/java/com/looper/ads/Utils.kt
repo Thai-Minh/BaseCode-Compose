@@ -1,5 +1,6 @@
 package com.looper.ads
 
+import android.app.Activity
 import android.content.Context
 import android.util.TypedValue
 import android.view.View
@@ -153,5 +154,13 @@ suspend fun Lifecycle.awaitResumed() = suspendCancellableCoroutine { continuatio
 
     continuation.invokeOnCancellation {
         removeObserver(observer)
+    }
+}
+
+fun isContextActivityDestroyed(context: Context): Boolean {
+    return if (context is Activity) {
+        context.isDestroyed || context.isFinishing
+    } else {
+        false
     }
 }

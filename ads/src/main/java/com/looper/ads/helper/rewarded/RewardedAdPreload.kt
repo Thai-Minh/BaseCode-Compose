@@ -1,6 +1,7 @@
 package com.looper.ads.helper.rewarded
 
 import android.content.Context
+import com.looper.ads.AdUnits
 import com.looper.ads.helper.interstitial.collectWhile
 import com.looper.ads.isSupportAds
 import com.looper.ads.safeResume
@@ -15,14 +16,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 enum class RewardedAdType(
     val adUnitId: String,
-    val adUnitBackup1: String? = null,
-    val adUnitBackup2: String? = null,
     val removable: Boolean = true
 ) {
     RewardedUnlockContent(
         adUnitId = "",
-        adUnitBackup1 = "",
-        adUnitBackup2 = "",
     )
 }
 
@@ -99,19 +96,14 @@ object RewardedAdPreload {
 
     private suspend fun loadRewardedAdInternal(
         context: Context,
-        adType: RewardedAdType
+        adType: RewardedAdType,
     ): RewardedAd? {
         if (!isSupportAds) return null
 
-        val adUnitList = listOfNotNull(
-            adType.adUnitId,
-            adType.adUnitBackup1,
-            adType.adUnitBackup2
-        )
-
-        for (id in adUnitList) {
-            val result = suspendCancellableCoroutine<RewardedAd?> { continuation ->
-                RewardedAd.load(context, id, object : RewardedAdLoadCallBack {
+        val result = suspendCancellableCoroutine<RewardedAd?> { continuation ->
+            RewardedAd.load(
+                context, adType.adUnitId,
+                object : RewardedAdLoadCallBack {
                     override fun onAdFailedToLoad(error: AdError) {
                         continuation.safeResume(null)
                     }
@@ -119,13 +111,10 @@ object RewardedAdPreload {
                     override fun onAdLoaded(ad: RewardedAd, adUnit: String) {
                         continuation.safeResume(ad)
                     }
-                })
-            }
-
-            if (result != null) return result
+                },
+            )
         }
-
-        return null
+        return result
     }
 
     private suspend fun getRewardedAdFromPreload(adType: RewardedAdType): RewardedAd? {

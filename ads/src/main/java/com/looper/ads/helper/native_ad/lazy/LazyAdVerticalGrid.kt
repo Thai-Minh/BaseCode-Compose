@@ -3,7 +3,6 @@ package com.looper.ads.helper.native_ad.lazy
 import android.app.Application
 import android.content.Context
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.FrameLayout
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -32,8 +31,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.looper.ads.R
 import com.looper.ads.conditional
 import com.looper.ads.helper.banner.list.Adaptive
 import com.looper.ads.helper.banner.list.Fixed
@@ -51,7 +52,16 @@ import com.looper.ads.isSupportAds
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 import kotlin.math.ceil
 
-data class NativeAdGridType(val items: List<Any> = emptyList(), val adType: NativeAdColumnType)
+enum class NativeAdGridSpan {
+    FullRow,
+    SingleCell,
+}
+
+data class NativeAdGridType(
+    val items: List<Any> = emptyList(),
+    val adType: NativeAdColumnType,
+    val adSpan: NativeAdGridSpan = NativeAdGridSpan.FullRow,
+)
 
 object AdItem
 
@@ -175,39 +185,21 @@ fun LazyAdVerticalGrid(
     val app = LocalContext.current.applicationContext as Application
 
     val viewModel: NativeAdViewModel = viewModel(
-        factory = NativeAdViewModelFactory(app, nativeType.adType.config.adType)
+        key = nativeType.adType.config.adType.name,
+        factory = NativeAdViewModelFactory(
+            app = app,
+            type = nativeType.adType.config.adType,
+            refreshAd = nativeType.adType.config.adType.removable
+        )
     )
-
-    NativeAdLifecycle(viewModel)
 
     val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(initialValue = NativeAdState.Loading)
 
-    var adView by remember {
-        mutableStateOf<View?>(null)
+    LaunchedEffect(viewModel) {
+        viewModel.forceRefreshAd()
     }
 
-    LaunchedEffect(nativeAd) {
-        adView = when (nativeAd) {
-            is NativeAdState.Success -> {
-                val view = LayoutInflater.from(app).inflate(
-                    nativeType.adType.config.nativeLayoutId,
-                    FrameLayout(app),
-                    false
-                )
-                val baseView = UnifiedNativeAdViewBinder.Builder(view).buildDefault()
-
-                (nativeAd as NativeAdState.Success).nativeAd.render(baseView)
-            }
-
-            is NativeAdState.Loading -> LayoutInflater.from(app).inflate(
-                nativeType.adType.config.shimmerLayoutId,
-                FrameLayout(app),
-                false
-            )
-
-            else -> null
-        }
-    }
+    NativeAdLifecycle(viewModel)
 
     var size by remember {
         mutableStateOf(IntSize.Zero)
@@ -226,13 +218,25 @@ fun LazyAdVerticalGrid(
     }
 
     val items by remember(columnCount, size, nativeType) {
-        val spanRowCount = size.height / app.dp2px(nativeType.adType.config.itemHeightDp)
+        val visibleRowCount =
+            (size.height / app.dp2px(nativeType.adType.config.itemHeightDp)).coerceAtLeast(1)
+        val nativeSpace = visibleRowCount + 2
+        val adSpace = if (nativeType.adType.config.adInterval > nativeSpace) {
+            nativeType.adType.config.adInterval
+        } else {
+            nativeSpace
+        }
+
         mutableStateOf(
             value = addNativeItem(
                 items = nativeType.items,
-                spanRowCount = spanRowCount,
                 columnCount = columnCount,
-                startAdIndex = if (nativeType.adType.config.startAdIndex == NEXT_SCROLL_INDEX) spanRowCount else nativeType.adType.config.startAdIndex
+                startAdIndex = if (nativeType.adType.config.startAdIndex == NEXT_SCROLL_INDEX) {
+                    nativeSpace
+                } else {
+                    nativeType.adType.config.startAdIndex
+                },
+                adInterval = adSpace,
             )
         )
     }
@@ -252,8 +256,18 @@ fun LazyAdVerticalGrid(
 
         items.forEachIndexed { index, item ->
             if (item is AdItem) {
-                if (adView != null) {
-                    item(key = "native${index}", span = { GridItemSpan(columnCount) }) {
+                if (nativeAd !is NativeAdState.Error) {
+                    item(
+                        key = "native$index",
+                        span = {
+                            GridItemSpan(
+                                when (nativeType.adSpan) {
+                                    NativeAdGridSpan.FullRow -> columnCount
+                                    NativeAdGridSpan.SingleCell -> 1
+                                }
+                            )
+                        }
+                    ) {
                         Box(
                             modifier = Modifier
                                 .conditional(
@@ -264,11 +278,47 @@ fun LazyAdVerticalGrid(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            NativeItem(
-                                modifier = nativeType.adType.config.modifier,
-                                view = adView!!,
-                                space = NativeSpace.space()
-                            )
+                            when (val nativeAdState = nativeAd) {
+                                is NativeAdState.Success -> {
+                                    val view = remember(
+                                        index,
+                                        nativeAdState,
+                                        nativeType.adType.config.nativeLayoutId
+                                    ) {
+                                        val nativeView = LayoutInflater.from(app).inflate(
+                                            nativeType.adType.config.nativeLayoutId,
+                                            FrameLayout(app),
+                                            false
+                                        )
+                                        val baseView = UnifiedNativeAdViewBinder.Builder(nativeView)
+                                            .buildDefault(buttonExpanded = R.id.native_call_to_action)
+
+                                        nativeAdState.nativeAd.render(baseView)
+                                    }
+
+                                    NativeItem(
+                                        modifier = nativeType.adType.config.modifier,
+                                        view = view,
+                                        space = NativeSpace.space()
+                                    )
+                                }
+
+                                NativeAdState.Loading,
+                                null -> {
+                                    AndroidView(
+                                        factory = { context ->
+                                            LayoutInflater.from(context).inflate(
+                                                nativeType.adType.config.shimmerLayoutId,
+                                                FrameLayout(context),
+                                                false
+                                            )
+                                        },
+                                        modifier = nativeType.adType.config.modifier
+                                    )
+                                }
+
+                                NativeAdState.Error -> Unit
+                            }
                         }
                     }
                 }
@@ -299,26 +349,31 @@ private fun Context.dp2px(dp: Int): Int {
 private fun addNativeItem(
     items: List<Any>,
     startAdIndex: Int,
-    spanRowCount: Int = 6,
-    columnCount: Int = 6
+    adInterval: Int,
+    columnCount: Int = 6,
 ): List<Any> {
-    val realIndex = startAdIndex - 1
+    if (items.isEmpty() || columnCount <= 0) return items
+
+    val rows = items.chunked(columnCount)
+    val normalizedStartIndex = startAdIndex.coerceAtLeast(0)
     val list = mutableListOf<Any>()
 
-    if (items.isNotEmpty() && columnCount > 0) {
-        val chucks = items.chunked(columnCount)
+    if (normalizedStartIndex == 0) {
+        list.add(AdItem)
+    }
 
-        if (items.size < columnCount) {
-            list.addAll(chucks[0])
+    rows.forEachIndexed { rowIndex, rowItems ->
+        list.addAll(rowItems)
+
+        val completedRowCount = rowIndex + 1
+        val isFirstAdPosition = normalizedStartIndex > 0 &&
+                completedRowCount == normalizedStartIndex
+        val isRepeatedAdPosition = adInterval > 0 &&
+                completedRowCount > normalizedStartIndex &&
+                (completedRowCount - normalizedStartIndex) % adInterval == 0
+
+        if (isFirstAdPosition || isRepeatedAdPosition) {
             list.add(AdItem)
-        } else {
-            chucks.forEachIndexed { index, chunkItems ->
-                list.addAll(chunkItems)
-
-                if (index == realIndex || (index - realIndex) % (spanRowCount + 1) == 0) {
-                    list.add(AdItem)
-                }
-            }
         }
     }
 

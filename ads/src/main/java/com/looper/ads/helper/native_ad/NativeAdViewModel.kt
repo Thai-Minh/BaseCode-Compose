@@ -1,6 +1,7 @@
 package com.looper.ads.helper.native_ad
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -17,13 +18,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val REFRESH_RATE = 15_000L
 
 class NativeAdViewModelFactory(
     private val app: Application,
     private val type: NativeAdType,
-    private val refreshAd: Boolean = false
+    private val refreshAd: Boolean = true,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NativeAdViewModel::class.java)) {
@@ -36,11 +38,12 @@ class NativeAdViewModelFactory(
 class NativeAdViewModel(
     private val app: Application,
     private val type: NativeAdType,
-    private val refreshAd: Boolean
+    private val refreshAd: Boolean = true,
 ) :
     ViewModel() {
 
-    private val refreshTrigger = MutableStateFlow<Any?>(null)
+    private val refreshTrigger = MutableStateFlow<Long?>(null)
+    private var refreshGeneration = 0L
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val nativeAd: Flow<NativeAdState?> = refreshTrigger
@@ -64,39 +67,37 @@ class NativeAdViewModel(
     init {
         viewModelScope.launch {
             nativeAd.collect {
-                if (it !is NativeAdState.Loading && !isPaused) {
-                    postReload()
-                }
+//                if (it !is NativeAdState.Loading && !isPaused) {
+//                    postReload()
+//                }
             }
         }
     }
 
-    fun forceRefreshAd(key: Any?) {
-        refreshTrigger.value = key
+    fun forceRefreshAd() {
+        refreshTrigger.value = ++refreshGeneration
     }
 
     fun onPaused() {
-        isPaused = true
-        pausedTime = System.currentTimeMillis()
-
-        removePostReload()
+//        isPaused = true
+//        pausedTime = System.currentTimeMillis()
+//
+//        removePostReload()
     }
 
     fun onResumed() {
         viewModelScope.launch {
-            if (!isPaused) return@launch
-
-            isPaused = false
-
-            if (nativeAd.firstOrNull() !is NativeAdState.Loading) {
-                val time = System.currentTimeMillis() - pausedTime
-                val delay = max(REFRESH_RATE - time, 0L)
-                postReload(delayMs = delay)
+            if (nativeAd.firstOrNull() == NativeAdState.Loading) {
+                loadNativeAd()
             }
         }
     }
 
-    fun onDisposed() = onPaused()
+    fun onDisposed() {
+        removeAdCache()
+
+        onPaused()
+    }
 
     fun removeAdCache() {
         if (!type.removable) return
@@ -108,7 +109,7 @@ class NativeAdViewModel(
         removePostReload()
 
         reloadJob = viewModelScope.launch {
-            delay(delayMs)
+            delay(delayMs.milliseconds)
             loadNativeAd()
         }
     }
@@ -125,6 +126,6 @@ class NativeAdViewModel(
 
         onDisposed()
 
-        removeAdCache()
+//        removeAdCache()
     }
 }

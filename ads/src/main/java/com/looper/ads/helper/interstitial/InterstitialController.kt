@@ -7,6 +7,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.looper.ads.AdUnits
 import com.looper.ads.AdjustManager
+import com.looper.ads.AdsManager
 import com.looper.ads.AdsManager.interstitialTimeoutMs
 import com.looper.ads.awaitResumed
 import com.looper.ads.dialog.SponsorLoadingDialog
@@ -181,6 +182,8 @@ object InterstitialController {
 
             isAdShowing = true
 
+            AdsManager.handleTemporarilyAppOpenResumed(false)
+
             val interState = showAdInternal(
                 activity = activity,
                 type = type,
@@ -191,6 +194,8 @@ object InterstitialController {
             InterstitialAdPreload.removeCacheInterAds(adType = type)
 
             isAdShowing = false
+
+            AdsManager.handleTemporarilyAppOpenResumed(true)
 
             callbackOnMain(
                 activity = activity,

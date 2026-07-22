@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looper.ads.ComposableLifecycle
 import com.looper.ads.R
@@ -48,6 +49,7 @@ import com.looper.ads.helper.native_ad.NativeAdState
 import com.looper.ads.helper.native_ad.NativeAdType
 import com.looper.ads.helper.native_ad.NativeAdViewModel
 import com.looper.ads.helper.native_ad.NativeAdViewModelFactory
+import com.looper.ads.isContextActivityDestroyed
 import com.looper.ads.isSupportAdState
 import com.looper.ads.isSupportAds
 import com.looper.ads.theme.FF222222
@@ -58,6 +60,7 @@ import com.looper.ads.theme.FFFFFFFF
 import com.zenith.adapter.format.UnifiedNativeAdRender
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 import com.zenith.adsdk.MediationAd
+import com.zenith.adsdk.format.NativeAdLoader
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -127,21 +130,28 @@ fun NativeAd(
     }
 
     val viewModel: NativeAdViewModel = viewModel(
-        key = adType.adUnitId,
-        factory = NativeAdViewModelFactory(app = app, type = adType, refreshAd = !key.isNullOrEmpty())
+        key = adType.name,
+        factory = NativeAdViewModelFactory(
+            app = app,
+            type = adType,
+            refreshAd = !key.isNullOrEmpty()
+        )
     )
 
-    val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(initialValue = NativeAdState.Loading)
+    val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(NativeAdState.Loading)
 
     LaunchedEffect(key) {
-        viewModel.forceRefreshAd(key)
+        viewModel.forceRefreshAd()
     }
 
     NativeAdLifecycle(viewModel = viewModel)
 
     LaunchedEffect(nativeAd) {
         when (nativeAd) {
-            is NativeAdState.Success -> onAdLoaded()
+            is NativeAdState.Success -> {
+                delay(1000.milliseconds)
+                onAdLoaded()
+            }
             is NativeAdState.Error -> onAdFailed()
             else -> onAdLoading()
         }
@@ -188,12 +198,15 @@ fun NativeAd(
                 if (nativeAd is NativeAdState.Success) {
                     val ad = (nativeAd as NativeAdState.Success).nativeAd
 
+                    val adUnitId = adType.adUnitId
+
                     val enableCollapsible =
                         MediationAd.getShared()?.isAdUnitCollapsible(adType.adUnitId) == true
 
                     NativeAdView(
                         modifier = customModifier,
                         nativeAd = ad,
+                        adUnitId = adUnitId,
                         contentLayoutId = contentLayoutId,
                         adProperty = adProperty,
                         enableCollapsible = enableCollapsible,
@@ -234,6 +247,7 @@ private fun ShimmerView(
 fun NativeAdView(
     modifier: Modifier = Modifier,
     nativeAd: UnifiedNativeAdRender,
+    adUnitId: String,
     @LayoutRes contentLayoutId: Int,
     adProperty: NativeAdProperty = NativeAdProperty(),
     enableCollapsible: Boolean,
@@ -264,35 +278,51 @@ fun NativeAdView(
                     buttonCollapsed = R.id.native_call_to_action_collapsible
                 )
 
-            val nativeAdView = nativeAd.render(binder).apply {
-                findViewById<TextView>(R.id.native_headline)?.setTextColor(adProperty.title.toArgb())
-
-                findViewById<TextView>(R.id.native_body)?.setTextColor(adProperty.description.toArgb())
-
-                setBackgroundColor(adProperty.backgroundAd.toArgb())
-
-                findViewById<View>(R.id.native_call_to_action)?.updateRippleColor(adProperty.backgroundButton)
-
-                findViewById<View>(R.id.native_call_to_action_expand)?.updateRippleColor(adProperty.backgroundButton)
-
-                findViewById<View>(R.id.native_call_to_action_collapsible)?.updateRippleColor(
-                    adProperty.backgroundButton
-                )
-
-                findViewById<Button>(R.id.native_call_to_action)?.setTextColor(adProperty.titleButton.toArgb())
-            }
-
-            parent.addView(
-                nativeAdView,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
+            parent.addViewAds(
+                adUnitId = adUnitId,
+                nativeAd = nativeAd,
+                baseAdView = binder
             )
-
-//        if (isSupportIconAnim) startIconAnimation(view = nativeAdView)
         }
     )
+}
+
+private fun ViewGroup.addViewAds(
+    adUnitId: String,
+    nativeAd: UnifiedNativeAdRender,
+    baseAdView: UnifiedNativeAdViewBinder
+): View? {
+    if (isContextActivityDestroyed(context)) return null
+
+    val nativeAdView = nativeAd.render(baseAdView)
+
+    val adLifecycleObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
+        override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+            NativeAdLoader.startRefresh(adUnitId)
+        }
+
+        override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
+            NativeAdLoader.stopRefresh(adUnitId)
+        }
+    }
+
+    nativeAdView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(p0: View) {
+            NativeAdLoader.startRefresh(adUnitId)
+
+            findViewTreeLifecycleOwner()?.lifecycle?.addObserver(adLifecycleObserver)
+        }
+
+        override fun onViewDetachedFromWindow(p0: View) {
+            NativeAdLoader.stopRefresh(adUnitId)
+
+            findViewTreeLifecycleOwner()?.lifecycle?.removeObserver(adLifecycleObserver)
+        }
+    })
+
+    this.removeAllViews()
+    this.addView(nativeAdView)
+    return nativeAdView
 }
 
 @Composable
@@ -383,24 +413,6 @@ private fun ViewGroup.removeAllViewAndAnimation() {
     clearAnimation()
     removeAllViews()
 }
-
-//private fun startIconAnimation(view: View) {
-//    val appIcon = view.findViewById(R.id.native_icon_bound) as? View ?: return
-//
-//    val animator = ValueAnimator.ofFloat(-10f, 10f).apply {
-//        interpolator = LinearInterpolator()
-//        repeatMode = ValueAnimator.REVERSE
-//        repeatCount = ValueAnimator.INFINITE
-//        duration = 250
-//    }
-//
-//    animator.addUpdateListener { animation ->
-//        val animatedValue = animation.animatedValue as Float
-//        appIcon.rotation = animatedValue
-//    }
-//
-//    animator.start()
-//}
 
 private fun View.updateRippleColor(color: Color) {
     val gradientDrawable = background as? StateListDrawable
