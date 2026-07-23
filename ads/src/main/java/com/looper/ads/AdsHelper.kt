@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-val isSupportAdState = MutableStateFlow(false)
+val isSupportAdState = MutableStateFlow(true)
 val isSupportAds get() = isSupportAdState.value
 
 fun Application.initAd(
@@ -18,9 +18,9 @@ fun Application.initAd(
     fetchFirstRemoteConfig: suspend () -> String?,
     fetcher: (callback: (String?) -> Unit) -> Unit,
     onNetworkInitializationSuccess: () -> Unit,
-    onNetworkInitializationFailed: (error: MediationAd.InitializationError?) -> Unit
+    onNetworkInitializationFailed: (error: AdsInitializationError) -> Unit
 ) {
-    AdsManager.init(this)
+//    AdsManager.init(this)
 
     setSupportAd(supportAds = isSupportAds)
 
@@ -63,16 +63,23 @@ private fun Application.initRemoteConfigFetcher(
     fetchFirstRemoteConfig: suspend () -> String?,
     fetcher: (callback: (String?) -> Unit) -> Unit,
     onNetworkInitializationSuccess: () -> Unit,
-    onNetworkInitializationFailed: (error: MediationAd.InitializationError?) -> Unit
+    onNetworkInitializationFailed: (error: AdsInitializationError) -> Unit
 ) {
     MediationAd.create(this@initRemoteConfigFetcher, object : MediationAd.Listener {
         override fun onInitializeSuccess() {
-            AdjustManager.trackEvent(ADJUST_APPLOVIN)
+//            AdjustManager.trackEvent(ADJUST_APPLOVIN)
             onNetworkInitializationSuccess()
         }
 
         override fun onInitializeFail(error: MediationAd.InitializationError?) {
-            onNetworkInitializationFailed(error)
+            val initializationError = when (error) {
+                MediationAd.InitializationError.JSON_CONFIG_NULL -> {
+                    AdsInitializationError.JSON_CONFIG_NULL
+                }
+
+                else -> AdsInitializationError.UNKNOWN
+            }
+            onNetworkInitializationFailed(initializationError)
         }
 
         override fun onNetworkInitializationComplete(

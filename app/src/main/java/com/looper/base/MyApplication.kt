@@ -4,6 +4,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.multidex.MultiDexApplication
 import com.looper.ads.AdjustManager
 import com.looper.ads.AdsDataPreference
+import com.looper.ads.AdsInitializationError
 import com.looper.ads.initAd
 import com.looper.base.di.appModule
 import com.looper.base.di.networkModule
@@ -82,7 +83,7 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
                 FRRemoteConfig.updateStateRemoteConfigAd(value = true)
             },
             onNetworkInitializationFailed = { error ->
-                if (error != MediationAd.InitializationError.JSON_CONFIG_NULL || !this.isNetworkAvailable()) {
+                if (error != AdsInitializationError.JSON_CONFIG_NULL || !this.isNetworkAvailable()) {
                     FRRemoteConfig.updateStateRemoteConfigAd(value = true)
                 }
             }
