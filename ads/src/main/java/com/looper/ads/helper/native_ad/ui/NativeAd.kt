@@ -140,7 +140,7 @@ fun NativeAd(
 
     val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(NativeAdState.Loading)
 
-    LaunchedEffect(key) {
+    LaunchedEffect(key1 = key, key2 = viewModel) {
         viewModel.forceRefreshAd()
     }
 
