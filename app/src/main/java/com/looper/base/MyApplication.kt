@@ -14,7 +14,6 @@ import com.looper.base.di.viewModelModule
 import com.looper.base.iap.core.BillingManagerImpl
 import com.looper.base.utils.firebase.FRRemoteConfig
 import com.looper.base.utils.isNetworkAvailable
-import com.zenith.adsdk.MediationAd
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
