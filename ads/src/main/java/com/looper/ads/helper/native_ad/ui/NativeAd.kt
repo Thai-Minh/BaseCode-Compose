@@ -264,18 +264,14 @@ fun NativeAdView(
 
             parent.removeAllViewAndAnimation()
 
-            val buttonId = if (enableCollapsible)
-                R.id.native_call_to_action_expand
-            else
-                R.id.native_call_to_action
-
             val binder = UnifiedNativeAdViewBinder.Builder(parent.context, contentLayoutId)
                 .setShowHeadlineAdvertiserLogo(isShowHeadlineAdvertiserLogo)
                 .buildDefault(
                     enableCollapsible = enableCollapsible,
                     goneAllAfterCollapsible = goneAllAfterCollapsible,
-                    buttonExpanded = buttonId,
-                    buttonCollapsed = R.id.native_call_to_action_collapsible
+                    buttonCallToAction = R.id.native_call_to_action,
+                    expandedLayout = R.id.native_call_to_action_expand_layout,
+                    collapsibleLayout = R.id.native_call_to_action_collapsible_layout
                 )
 
             parent.addViewAds(
@@ -385,27 +381,31 @@ inline fun BoxSpace(
 fun UnifiedNativeAdViewBinder.Builder.buildDefault(
     enableCollapsible: Boolean = false,
     goneAllAfterCollapsible: Boolean = true,
-    buttonExpanded: Int = R.id.native_call_to_action_expand, // nếu là native thường thì truyền id button vào đây
-    buttonCollapsed: Int = R.id.native_call_to_action_collapsible
+    buttonCallToAction: Int = R.id.native_call_to_action,
+    expandedLayout: Int = R.id.native_call_to_action_expand_layout, // nếu là native thường thì truyền id button vào đây
+    collapsibleLayout: Int = R.id.native_call_to_action_collapsible_layout
 ): UnifiedNativeAdViewBinder {
 
     return setHeadlineResId(R.id.native_headline)
         .setBodyResId(R.id.native_body)
         .setIconResId(R.id.native_icon)
         .setMediaContentResId(R.id.native_media_container)
-        .setCallToActionButton1ResId(buttonExpanded)
-        .setCallToActionButton2ResId(buttonCollapsed)
+        .setCallToActionButtonResId(buttonCallToAction)
+        .setMovableCallToActionButtonResId(buttonCallToAction)
+        .setExpandedCallToActionContainerResId(expandedLayout)
+        .setCollapsedCallToActionContainerResId(collapsibleLayout)
         .setAdvertiserViewResId(R.id.native_sponsored_layout)
 
         .setMediaGroupResId(R.id.native_media_group) // for collapsible
         .setNativeIconGroupResId(R.id.native_icon_group) // for collapsible
-        .setCollapsibleBtnResId(R.id.collapsible_btn) // for collapsible
+        .setCollapsibleCtaBtnResId(R.id.collapsible_cta_btn) // single overlay control
 
         .setEnableCollapsible(enableCollapsible)
         .setGoneAllAfterCollapsible(goneAllAfterCollapsible)
         .setQuickCollapsible(true)
         .setRandomClickCollapsibleTime(3000)
         .setShowHeadlineAdvertiserLogo(enableCollapsible)
+        .setCollapsibleActionChancePercent(50)
         .build()
 }
 

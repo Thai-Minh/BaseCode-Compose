@@ -221,10 +221,10 @@ fun LazyAdVerticalGrid(
         val visibleRowCount =
             (size.height / app.dp2px(nativeType.adType.config.itemHeightDp)).coerceAtLeast(1)
         val nativeSpace = visibleRowCount + 2
-        val adSpace = if (nativeType.adType.config.adInterval > nativeSpace) {
-            nativeType.adType.config.adInterval
-        } else {
-            nativeSpace
+        val adSpace = when {
+            nativeType.adType.config.adInterval < 0 -> nativeType.adType.config.adInterval
+            nativeType.adType.config.adInterval > nativeSpace -> nativeType.adType.config.adInterval
+            else -> nativeSpace
         }
 
         mutableStateOf(
@@ -291,7 +291,7 @@ fun LazyAdVerticalGrid(
                                             false
                                         )
                                         val baseView = UnifiedNativeAdViewBinder.Builder(nativeView)
-                                            .buildDefault(buttonExpanded = R.id.native_call_to_action)
+                                            .buildDefault(buttonCallToAction = R.id.native_call_to_action)
 
                                         nativeAdState.nativeAd.render(baseView)
                                     }

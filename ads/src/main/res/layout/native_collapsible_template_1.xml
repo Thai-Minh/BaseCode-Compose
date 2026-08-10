@@ -28,17 +28,17 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-    </FrameLayout>
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/collapsible_cta_btn"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="4dp"
+            android:scaleType="centerInside"
+            app:srcCompat="@drawable/ic_ad_collapsible" />
 
-    <androidx.appcompat.widget.AppCompatImageView
-        android:id="@+id/collapsible_btn"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:scaleType="centerInside"
-        android:background="?selectableItemBackground"
-        app:layout_constraintTop_toTopOf="@+id/native_media_group"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:srcCompat="@drawable/ic_ad_collapsible"/>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/info_group"
@@ -120,30 +120,10 @@
             <FrameLayout
                 android:id="@+id/native_call_to_action_collapsible_layout"
                 android:layout_width="wrap_content"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                tools:visibility="visible"
-                android:visibility="visible"
-                app:layout_constraintStart_toEndOf="@+id/native_headline"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="@+id/native_body">
-
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/native_call_to_action_collapsible"
-                    android:layout_width="wrap_content"
-                    android:layout_height="@dimen/native_big_button_height_2"
-                    android:background="@drawable/ripple_round_button_gradient"
-                    android:gravity="center"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingLeft="@dimen/native_big_button_padding_edge"
-                    android:paddingRight="@dimen/native_big_button_padding_edge"
-                    android:text="@string/native_sample_call_to_action"
-                    android:textColor="@color/native_call_to_action_text_color"
-                    android:textSize="@dimen/native_big_button_text_size_2" />
-
-            </FrameLayout>
+                android:visibility="gone"
+                tools:visibility="gone" />
 
         </LinearLayout>
 
@@ -152,10 +132,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
-            tools:visibility="gone">
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="6dp"
+            tools:visibility="visible"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/collapsible_group"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/native_call_to_action_expand"
+            <Button
+                android:id="@+id/native_call_to_action"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/native_big_button_height_2"
                 android:background="@drawable/ripple_round_button_gradient"
@@ -166,7 +152,7 @@
                 android:paddingLeft="@dimen/native_big_button_padding_edge"
                 android:paddingRight="@dimen/native_big_button_padding_edge"
                 android:text="@string/native_sample_call_to_action"
-                android:textColor="@color/native_call_to_action_text_color"
+                android:textColor="@color/black"
                 android:textSize="@dimen/native_big_button_text_size_2" />
 
         </FrameLayout>

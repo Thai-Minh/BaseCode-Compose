@@ -59,6 +59,7 @@ import com.looper.ads.helper.native_ad.ui.NativeAdLifecycle
 import com.looper.ads.helper.native_ad.ui.NativeSpace
 import com.looper.ads.helper.native_ad.ui.buildDefault
 import com.looper.ads.isSupportAds
+import com.looper.ads.theme.Color1A1A1A
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 
 enum class NativeAdColumnType(val config: NativeAdConfig) {
@@ -76,7 +77,7 @@ enum class NativeAdColumnType(val config: NativeAdConfig) {
 //                )
 //                .clip(RoundedCornerShape(8.dp)),
 //            startAdIndex = 0,
-//            adInterval = 0,
+//            adInterval = -1,
 //            itemHeightDp = 250,
 //            shimmerLayoutId = R.layout.native_language_shimmer_v2_item,
 //            nativeLayoutId = R.layout.native_language_v2_item
@@ -247,10 +248,10 @@ fun LazyAdColumn(
         size.height / app.dp2Px(config.itemHeightDp) + 2
     }
 
-    val adSpace = if (config.adInterval > nativeSpace) {
-        config.adInterval
-    } else {
-        nativeSpace
+    val adSpace = when {
+        config.adInterval < 0 -> config.adInterval
+        config.adInterval > nativeSpace -> config.adInterval
+        else -> nativeSpace
     }
 
     val viewModel: NativeAdViewModel = viewModel(
@@ -331,7 +332,7 @@ fun LazyAdColumn(
                                             }
 
                                             val baseView = UnifiedNativeAdViewBinder.Builder(nativeView)
-                                                .buildDefault(buttonExpanded = R.id.native_call_to_action)
+                                                .buildDefault(buttonCallToAction = R.id.native_call_to_action)
 
                                             nativeAdState.nativeAd.render(baseView)
                                         }

@@ -62,7 +62,7 @@ fun NativeAdOnlyIcon(
                         parent.context,
                         R.layout.native_ad_only_icon_ad_house
                     )
-                        .setCallToActionButton2ResId(R.id.native_call_to_action)
+                        .setCallToActionButtonResId(R.id.native_call_to_action)
                         .setIconResId(R.id.native_icon)
                         .build()
 
