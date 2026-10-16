@@ -108,10 +108,15 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.session)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -129,6 +134,12 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.video)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.compose.v363)
+    implementation(libs.coil.gif)
+
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
+    implementation(libs.haze.materials)
 
     // Kotlin Coroutine
     implementation(libs.kotlinx.coroutines.core)
@@ -170,6 +181,14 @@ dependencies {
 
     // Shimmer
     implementation(libs.shimmer)
+
+    // YoutubeDL owns fallback resolution and downloads; its FFmpeg module performs A/V merges.
+    implementation(libs.youtubedl.android)
+    implementation(libs.youtubedl.android.ffmpeg)
+    implementation(libs.youtubedl.android.aria2c)
+
+    implementation(libs.catcher.core)
+    implementation(libs.download.manager.core)
 }
 
 configurations.all {

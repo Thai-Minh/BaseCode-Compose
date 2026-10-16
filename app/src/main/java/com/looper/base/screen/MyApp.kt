@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.looper.ads.AdsManager
 import com.looper.base.base.navigation.LanguageInput
+import com.looper.base.base.navigation.MainInput
 import com.looper.base.base.navigation.MyAppNavGraph
 import com.looper.base.base.navigation.OnBoardingInput
 import com.looper.base.base.navigation.SplashInput
@@ -76,9 +77,9 @@ private fun NetworkHandler(
 
         handleShowWelcomeBack(destination = destination)
 
-        if (!isConnected && isNotSplash) {
+        if (!isConnected && isNotSplash && !destination.hasRoute<MainInput>()) {
             dialogState.showNoInternetDialog()
-        } else if (isConnected) {
+        } else {
             dialogState.dismissNoInternetDialog(false)
         }
     }

@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.looper.base.base.navigation.child.languageNavGraph
+import com.looper.base.base.navigation.child.mainNavGraph
 import com.looper.base.base.navigation.child.splashNavGraph
 
 @Composable
@@ -21,6 +22,7 @@ fun MyAppNavGraph(
             splashNavGraph(navController = navController)
 
             languageNavGraph(navController = navController)
+            mainNavGraph()
         }
     )
 }

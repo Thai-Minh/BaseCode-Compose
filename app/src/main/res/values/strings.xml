@@ -1,5 +1,38 @@
 <resources>
     <string name="app_name">Base Code Compose</string>
+    <string name="audio_library">Audio Library</string>
+    <plurals name="audio_count">
+        <item quantity="one">%1$d audio file on this device</item>
+        <item quantity="other">%1$d audio files on this device</item>
+    </plurals>
+    <string name="audio_permission_title">Your audio, in one place</string>
+    <string name="audio_permission_message">Allow audio access to browse and play the audio files stored on your device.</string>
+    <string name="audio_grant_permission">Allow audio access</string>
+    <string name="audio_empty">No audio files found on this device.</string>
+    <string name="audio_load_error">Unable to load audio files. Please try again.</string>
+    <string name="audio_playback_error">Unable to play this audio file.</string>
+    <string name="audio_connection_error">Unable to connect to the music service.</string>
+    <string name="audio_retry">Try again</string>
+    <string name="audio_refresh">Refresh</string>
+    <string name="audio_play">Play</string>
+    <string name="audio_pause">Pause</string>
+    <string name="audio_previous">Previous</string>
+    <string name="audio_next">Next</string>
+    <string name="audio_now_playing">NOW PLAYING</string>
+    <string name="audio_notification_channel">Audio playback</string>
+    <string name="audio_widget_idle">Choose audio to play</string>
+    <string name="audio_widget_title">Home-screen widget</string>
+    <string name="audio_widget_description">Add from here or from your home screen’s Widgets menu.</string>
+    <string name="audio_widget_add">Add widget</string>
+    <string name="audio_lock_screen_title">Lock-screen player</string>
+    <string name="audio_lock_screen_description">Show a separate player over the lock screen while music is playing. Close it to return to your device’s media controls.</string>
+    <string name="audio_lock_screen_enable">Enable</string>
+    <string name="audio_lock_screen_disable">Disable</string>
+    <string name="audio_lock_screen_dismiss">Close player</string>
+    <string name="audio_lock_screen_permission_title">Show a separate lock-screen player</string>
+    <string name="audio_lock_screen_permission_message">Allow display over other apps so the player can open when you lock the device. This does not unlock or replace the secure lock screen, and the system media player remains available after you close it.</string>
+    <string name="audio_lock_screen_allow">Open permission settings</string>
+    <string name="audio_lock_screen_cancel">Not now</string>
 
     <!--for IAP-->
     <string name="txt_yearly">Yearly</string>
