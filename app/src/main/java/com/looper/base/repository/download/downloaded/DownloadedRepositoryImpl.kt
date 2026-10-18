@@ -1,16 +1,16 @@
-package com.looper.videodownloader.repository.download.downloaded
+package com.looper.base.repository.download.downloaded
 
 import androidx.activity.ComponentActivity
 import com.example.all.downloader.manager.IDownloaderManager
 import com.example.all.downloader.manager.data.DownloadStatus
 import com.example.all.downloader.manager.data.MediaType
 import com.looper.base.repository.download.IDownloadFileRepository
-import com.looper.videodownloader.repository.download.data.DownloadItem
-import com.looper.videodownloader.repository.download.data.toDownloadedItem
-import com.looper.videodownloader.repository.download.deleteFileNormal
-import com.looper.videodownloader.repository.download.isAudio
-import com.looper.videodownloader.repository.download.isImage
-import com.looper.videodownloader.repository.download.isVideo
+import com.looper.base.repository.download.data.DownloadItem
+import com.looper.base.repository.download.data.toDownloadedItem
+import com.looper.base.repository.download.deleteFileNormal
+import com.looper.base.repository.download.isAudio
+import com.looper.base.repository.download.isImage
+import com.looper.base.repository.download.isVideo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map

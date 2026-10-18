@@ -1,13 +1,13 @@
-package com.looper.videodownloader.repository.download
+package com.looper.base.repository.download
 
 import androidx.activity.ComponentActivity
 import com.example.all.downloader.manager.data.MediaType
 import com.example.all.downloader.manager.data.Platform
-import com.looper.videodownloader.repository.download.data.DownloadBackend
-import com.looper.videodownloader.repository.download.data.DownloadItem
-import com.looper.videodownloader.repository.download.downloaded.IDownloadedRepository
-import com.looper.videodownloader.repository.youtubedl.YoutubeDLDownloadRepository
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLDownloadStatus
+import com.looper.base.repository.download.data.DownloadBackend
+import com.looper.base.repository.download.data.DownloadItem
+import com.looper.base.repository.download.downloaded.IDownloadedRepository
+import com.looper.base.repository.youtubedl.YoutubeDLDownloadRepository
+import com.looper.base.repository.youtubedl.data.YoutubeDLDownloadStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 

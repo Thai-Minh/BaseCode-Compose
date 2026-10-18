@@ -1,12 +1,12 @@
-package com.looper.videodownloader.repository.download.downloading
+package com.looper.base.repository.download.downloading
 
 import androidx.activity.ComponentActivity
 import com.example.all.downloader.manager.IDownloaderManager
 import com.example.all.downloader.manager.data.DownloadStatus
 import com.looper.base.repository.download.IDownloadFileRepository
-import com.looper.videodownloader.repository.download.data.DownloadItem
-import com.looper.videodownloader.repository.download.deleteFileNormal
-import com.looper.videodownloader.repository.download.updateDownloadDB
+import com.looper.base.repository.download.data.DownloadItem
+import com.looper.base.repository.download.deleteFileNormal
+import com.looper.base.repository.download.updateDownloadDB
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

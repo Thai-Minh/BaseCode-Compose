@@ -1,4 +1,4 @@
-package com.looper.videodownloader.repository.youtubedl
+package com.looper.base.repository.youtubedl
 
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import java.io.File

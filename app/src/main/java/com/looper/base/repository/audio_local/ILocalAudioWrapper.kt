@@ -1,12 +1,12 @@
-package com.looper.videodownloader.repository.video_local
+package com.looper.base.repository.audio_local
 
 import androidx.activity.ComponentActivity
-import com.looper.videodownloader.repository.video_local.data.LocalVideoItem
+import com.looper.base.repository.audio_local.data.LocalVideoItem
 import kotlinx.coroutines.flow.Flow
 
-interface ILocalVideoWrapper {
+interface ILocalAudioWrapper {
 
-    val localVideo: Flow<LocalVideoItem>
+    val localAudio: Flow<LocalVideoItem>
 
     fun fetch()
 

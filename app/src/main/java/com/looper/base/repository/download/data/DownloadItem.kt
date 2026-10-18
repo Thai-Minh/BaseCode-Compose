@@ -1,4 +1,4 @@
-package com.looper.videodownloader.repository.download.data
+package com.looper.base.repository.download.data
 
 import com.example.all.downloader.manager.data.DownloadInfoItem
 import com.example.all.downloader.manager.data.DownloadStatus

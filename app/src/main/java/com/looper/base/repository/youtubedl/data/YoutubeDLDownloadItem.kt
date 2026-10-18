@@ -1,4 +1,4 @@
-package com.looper.videodownloader.repository.youtubedl.data
+package com.looper.base.repository.youtubedl.data
 
 import com.looper.videodownloader.database.data.YoutubeDLDownloadEntity
 

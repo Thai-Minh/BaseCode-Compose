@@ -2,7 +2,7 @@ package com.looper.base.repository.download
 
 import androidx.activity.ComponentActivity
 import com.example.all.downloader.manager.IDownloaderManager
-import com.looper.videodownloader.repository.download.data.DownloadItem
+import com.looper.base.repository.download.data.DownloadItem
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 

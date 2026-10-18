@@ -1,17 +1,17 @@
-package com.looper.videodownloader.repository.youtubedl
+package com.looper.base.repository.youtubedl
 
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
 import com.looper.videodownloader.database.dao.YoutubeDLDownloadDao
 import com.looper.videodownloader.database.data.YoutubeDLDownloadEntity
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLDownloadItem
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLDownloadStatus
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLFormatOption
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLResolvedAudio
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLResolvedVideo
-import com.looper.videodownloader.repository.youtubedl.data.toModel
-import com.looper.videodownloader.service.YoutubeDLDownloadService
+import com.looper.base.repository.youtubedl.data.YoutubeDLDownloadItem
+import com.looper.base.repository.youtubedl.data.YoutubeDLDownloadStatus
+import com.looper.base.repository.youtubedl.data.YoutubeDLFormatOption
+import com.looper.base.repository.youtubedl.data.YoutubeDLResolvedAudio
+import com.looper.base.repository.youtubedl.data.YoutubeDLResolvedVideo
+import com.looper.base.repository.youtubedl.data.toModel
+import com.looper.base.service.YoutubeDLDownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import kotlin.jvm.java
 
 interface YoutubeDLDownloadRepository {
     val items: Flow<List<YoutubeDLDownloadItem>>
@@ -107,13 +108,13 @@ class YoutubeDLDownloadRepositoryImpl(
     ): String {
         val id = UUID.randomUUID().toString()
 
-        val processId = "$BASE_YOUTUBE_DL_PROCESS$id"
+        val processId = "${BASE_YOUTUBE_DL_PROCESS}$id"
 
         val now = System.currentTimeMillis()
 
         val requested = YoutubeDLOutputNaming.requestedName(outputName, title)
 
-        val temp = File(appContext.cacheDir, "$YOUTUBE_DL_FOLDER$id").absolutePath
+        val temp = File(appContext.cacheDir, "${YOUTUBE_DL_FOLDER}$id").absolutePath
 
         try {
             if (downloadInfoJson != null) {
@@ -122,7 +123,7 @@ class YoutubeDLDownloadRepositoryImpl(
                     check(directory.mkdirs() || directory.isDirectory) {
                         "Unable to create download directory"
                     }
-                    val staging = File(directory, "$YOUTUBE_DL_RESOLVED_INFO_NAME.tmp")
+                    val staging = File(directory, "${YOUTUBE_DL_RESOLVED_INFO_NAME}.tmp")
                     staging.writeText(downloadInfoJson)
                     check(staging.renameTo(File(directory, YOUTUBE_DL_RESOLVED_INFO_NAME))) {
                         "Unable to save resolved download information"
@@ -185,11 +186,12 @@ class YoutubeDLDownloadRepositoryImpl(
 
         item.finalUri?.let {
             runCatching {
-                appContext.contentResolver.delete(
-                    it.toUri(),
-                    null,
-                    null
-                )
+                val uri = it.toUri()
+                if (uri.scheme == "file") {
+                    uri.path?.let { path -> File(path).delete() }
+                } else {
+                    appContext.contentResolver.delete(uri, null, null)
+                }
             }
         }
 

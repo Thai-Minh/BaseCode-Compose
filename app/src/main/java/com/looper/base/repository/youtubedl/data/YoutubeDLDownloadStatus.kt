@@ -1,4 +1,4 @@
-package com.looper.videodownloader.repository.youtubedl.data
+package com.looper.base.repository.youtubedl.data
 
 enum class YoutubeDLDownloadStatus {
     QUEUED,

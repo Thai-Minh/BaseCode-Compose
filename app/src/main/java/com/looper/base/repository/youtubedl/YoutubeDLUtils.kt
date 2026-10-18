@@ -1,10 +1,10 @@
-package com.looper.videodownloader.repository.youtubedl
+package com.looper.base.repository.youtubedl
 
 import android.content.Context
 import android.util.Log
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLFormatOption
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLResolvedAudio
-import com.looper.videodownloader.repository.youtubedl.data.YoutubeDLResolvedVideo
+import com.looper.base.repository.youtubedl.data.YoutubeDLFormatOption
+import com.looper.base.repository.youtubedl.data.YoutubeDLResolvedAudio
+import com.looper.base.repository.youtubedl.data.YoutubeDLResolvedVideo
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLException

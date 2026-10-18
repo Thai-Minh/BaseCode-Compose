@@ -16,3 +16,6 @@ object OnBoardingInput
 
 @Serializable
 object MainInput
+
+@Serializable
+object DownloadInput

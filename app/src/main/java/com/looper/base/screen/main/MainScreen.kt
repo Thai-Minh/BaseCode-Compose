@@ -72,7 +72,10 @@ import com.looper.base.utils.coil.embeddedAudioArtworkRequest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
+fun MainScreen(
+    viewModel: MainViewModel = koinViewModel(),
+    navigateToDownload: () -> Unit
+) {
     val context = LocalContext.current
     val widgetManager = remember(context) { AppWidgetManager.getInstance(context) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -194,6 +197,7 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
                         }
                     }
                 }
+
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -219,6 +223,14 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
                         ))
                     }
                 }
+
+                TextButton(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    onClick = navigateToDownload
+                ) {
+                    Text("Navigate to download")
+                }
+
                 playback.error?.let { error ->
                     Row(
                         Modifier.fillMaxWidth()
@@ -237,6 +249,8 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel()) {
                         }
                     }
                 }
+
+
                 when {
                     !uiState.hasAudioPermission -> {
                         Column(

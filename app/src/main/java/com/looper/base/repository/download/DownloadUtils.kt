@@ -1,10 +1,9 @@
-package com.looper.videodownloader.repository.download
+package com.looper.base.repository.download
 
 import androidx.activity.ComponentActivity
 import com.example.all.downloader.manager.IDownloaderManager
 import com.example.all.downloader.manager.data.MediaType
 import com.looper.ads.AdsManager
-
 
 val MediaType.isVideo
     get() = this == MediaType.VIDEO_FFMPEG || this == MediaType.VIDEO

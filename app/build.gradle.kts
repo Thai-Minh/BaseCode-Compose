@@ -81,6 +81,13 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        jniLibs {
+            // YoutubeDL opens Python/FFmpeg runtime files from nativeLibraryDir.
+            useLegacyPackaging = true
+        }
+    }
+
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
@@ -189,6 +196,12 @@ dependencies {
 
     implementation(libs.catcher.core)
     implementation(libs.download.manager.core)
+
+    implementation(project(":local-file-manager"))
+
+    // permission
+    implementation(libs.permissions.helper)
+    implementation(libs.permissions.helper.ktx)
 }
 
 configurations.all {

@@ -1,4 +1,4 @@
-package com.looper.videodownloader.repository.youtubedl
+package com.looper.base.repository.youtubedl
 
 import android.content.Context
 import androidx.core.content.edit
