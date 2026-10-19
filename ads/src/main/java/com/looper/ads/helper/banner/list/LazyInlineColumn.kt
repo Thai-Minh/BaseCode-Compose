@@ -42,14 +42,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.contains
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.looper.ads.conditional
+import com.looper.ads.dp2Px
 import com.looper.ads.helper.banner.data.BannerAdType
 import com.looper.ads.helper.banner.data.BannerState
-import com.looper.ads.conditional
-import com.looper.ads.createAdaptiveBannerShimmerLayout
-import com.looper.ads.dp2Px
-import com.looper.ads.isSupportAds
+import com.looper.ads.helper.banner.getShimmerLayout
 import com.looper.ads.helper.lazy_list.LazyListIntervalContent
 import com.looper.ads.helper.lazy_list.LazyListScopeImpl
+import com.looper.ads.isSupportAdState
 import com.looper.ads.theme.FFD9D9D9
 
 const val ORIGINAL_ITEM_HEIGHT_UNLIMITED = -1
@@ -197,7 +197,8 @@ fun LazyInlineColumn(
     content: LazyListScope.() -> Unit
 ) {
 
-    if (!isSupportAds || !canScroll) {
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds || !canScroll) {
         return LazyColumn(
             modifier = modifier,
             state = state,
@@ -232,9 +233,13 @@ fun LazyInlineColumn(
 
     LaunchedEffect(adResult) {
         adView = when (adResult) {
-            is BannerState.Loading -> context.createAdaptiveBannerShimmerLayout()
+            is BannerState.Loading -> {
+                (adResult as BannerState.Loading).bannerAdSize.getShimmerLayout(context = context)
+            }
 
-            is BannerState.Success -> (adResult as BannerState.Success).view
+            is BannerState.Success -> {
+                (adResult as BannerState.Success).view
+            }
 
             else -> null
         }

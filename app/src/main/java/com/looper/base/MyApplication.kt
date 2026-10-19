@@ -1,20 +1,25 @@
 package com.looper.base
 
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.multidex.MultiDexApplication
 import com.looper.ads.AdjustManager
 import com.looper.ads.AdsDataPreference
 import com.looper.ads.AdsInitializationError
+import com.looper.ads.bindAdEligibility
 import com.looper.ads.initAd
 import com.looper.base.di.appModule
 import com.looper.base.di.networkModule
 import com.looper.base.di.notificationModule
 import com.looper.base.di.repositoryModule
 import com.looper.base.di.viewModelModule
-import com.looper.base.iap.core.BillingManagerImpl
+import com.looper.iap.BillingManagerImpl
+import com.looper.iap.OrigoIapSdk
+import com.looper.iap.model.IapConfig
+import com.looper.iap.model.TrustPlayPurchaseVerifier
 import com.looper.base.utils.firebase.FRRemoteConfig
 import com.looper.base.utils.isNetworkAvailable
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -30,17 +35,35 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
         var isAppInForeground: Boolean = false
     }
 
+    lateinit var iapManager: BillingManagerImpl
+        private set
+
     override fun onCreate() {
         super<MultiDexApplication>.onCreate()
 
         instance = this
 
+        com.looper.base.tracking.AdRevenueAnalytics.register(application = this)
         AdjustManager.initAdjustSDK(application = this, isDebug = BuildConfig.DEBUG)
 
         AdsDataPreference.init(this)
 
         FRRemoteConfig.fetchAllConfigs()
-        BillingManagerImpl.create(this)
+        // TEST ONLY: TrustPlayPurchaseVerifier trusts Play client results. Replace with a
+        // server-backed PurchaseVerifier before shipping or granting valuable entitlements.
+        iapManager = OrigoIapSdk.create(
+            context = this,
+            config = IapConfig(
+                catalog = PlayIapCatalog.catalog,
+                purchaseVerifier = TrustPlayPurchaseVerifier,
+            ),
+        )
+
+        bindAdEligibility(
+            scope = ProcessLifecycleOwner.get().lifecycleScope,
+            remoteAllowsAds = FRRemoteConfig.fetchShowAdsWhenReview,
+            isPremium = iapManager.isPremiumFlow,
+        )
 
         startKoin {
             androidLogger()
@@ -48,27 +71,20 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
             modules(appModule, networkModule, repositoryModule, viewModelModule, notificationModule)
         }
 
-        MainScope().launch {
-            val isShowAdWhenReview = FRRemoteConfig.fetchShowAdsWhenReview
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            FRRemoteConfig.fetchShowAdsWhenReview
                 .filterNotNull()
                 .first()
 
-            initAds(isShowAdWhenReview = isShowAdWhenReview)
+            initAds()
         }
     }
 
-    private fun initAds(isShowAdWhenReview: Boolean) {
+    private fun initAds() {
         val remoteConfigKey = BuildConfig.REMOTE_CONFIG_ADS_KEY
-
-        val isSupportAd = if (!isShowAdWhenReview) {
-            false
-        } else {
-            !BillingManagerImpl.getInstance().hasPremium()
-        }
 
         // init & fetch config mediation from Remote Config
         initAd(
-            isSupportAds = isSupportAd,
             fetchFirstRemoteConfig = {
                 FRRemoteConfig.fetchAdsRemoteConfig(key = remoteConfigKey)
             },

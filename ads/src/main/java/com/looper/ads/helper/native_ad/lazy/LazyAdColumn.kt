@@ -58,7 +58,7 @@ import com.looper.ads.helper.native_ad.ui.BoxSpace
 import com.looper.ads.helper.native_ad.ui.NativeAdLifecycle
 import com.looper.ads.helper.native_ad.ui.NativeSpace
 import com.looper.ads.helper.native_ad.ui.buildDefault
-import com.looper.ads.isSupportAds
+import com.looper.ads.isSupportAdState
 import com.looper.ads.theme.Color1A1A1A
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 
@@ -221,7 +221,8 @@ fun LazyAdColumn(
     userScrollEnabled: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
-    if (!isSupportAds || !isShowAd) {
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds || !isShowAd) {
         return LazyColumn(
             modifier = modifier,
             state = state,

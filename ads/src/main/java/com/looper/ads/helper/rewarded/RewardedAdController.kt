@@ -5,6 +5,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.suspendCancellableCoroutine
+import com.looper.ads.safeResume
 import com.looper.ads.AdjustManager
 import com.looper.ads.AdsManager
 import com.looper.ads.awaitResumed
@@ -38,11 +41,16 @@ fun showRewardedAd(
     callback: (Boolean?) -> Unit = {},
     trackEventShowAd: (Boolean) -> Unit = {}
 ) {
+    AdsManager.ignoreAutoCloseAdFullScreen = true
+
     RewardedAdController.showRewardedAd(
         activity = activity,
         adType = adType,
         timeOut = timeOut,
-        callback = callback,
+        callback = {
+            AdsManager.ignoreAutoCloseAdFullScreen = false
+            callback(it)
+        },
         trackEventShowAd = trackEventShowAd
     )
 }

@@ -42,7 +42,7 @@ class NativeAdViewModel(
 ) :
     ViewModel() {
 
-    private val refreshTrigger = MutableStateFlow<Long?>(null)
+    private val refreshTrigger = MutableStateFlow<Long?>(0L)
     private var refreshGeneration = 0L
 
     @OptIn(ExperimentalCoroutinesApi::class)

@@ -18,4 +18,20 @@ object AdsDataPreference {
         set(value) {
             sharedPreferences.edit { putString(LANGUAGE_CODE_ADS, value) }
         }
+
+    const val INTERS_SPLASH_ALLOW_AUTO_CLOSE = "INTERS_SPLASH_ALLOW_AUTO_CLOSE"
+    const val INTERS_AUTO_CLOSE_DELAY_MS = "INTERS_AUTO_CLOSE_DELAY_MS"
+
+
+    var intersSplashAllowAutoClose: Boolean
+        get() = sharedPreferences.getBoolean(INTERS_SPLASH_ALLOW_AUTO_CLOSE, false)
+        set(value) {
+            sharedPreferences.edit { putBoolean(INTERS_SPLASH_ALLOW_AUTO_CLOSE, value) }
+        }
+
+    var intersAutoCloseDelayMs: Long
+        get() = sharedPreferences.getLong(INTERS_AUTO_CLOSE_DELAY_MS, 5000)
+        set(value) {
+            sharedPreferences.edit { putLong(INTERS_AUTO_CLOSE_DELAY_MS, value) }
+        }
 }

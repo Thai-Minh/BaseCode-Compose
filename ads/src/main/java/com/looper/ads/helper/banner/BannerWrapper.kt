@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
 @SuppressLint("ViewConstructor")
 class BannerWrapper(
     private val context: Context,
-    private val bannerAdType: BannerAdType
+    private val bannerAdType: BannerAdType,
+    private val onStateChanged: (BannerState) -> Unit = {},
 ) : FrameLayout(context) {
 
     private var job: Job? = null
@@ -31,6 +32,7 @@ class BannerWrapper(
             if (value != _bannerState) {
                 _bannerState = value
                 onBannerStateChanged()
+                value?.let(onStateChanged)
             }
         }
 
@@ -38,11 +40,12 @@ class BannerWrapper(
         val state = bannerState ?: return
 
         when (state) {
-            BannerState.Loading -> {
-                val shimmerLayout = bannerAdType.bannerAdSize.getShimmerLayout(context = context)
+            is BannerState.Loading -> {
+                val shimmerLayout = bannerAdType.bannerAdSize.getShimmerLayout(context = context, adSize = state.size)
 
                 synchronizedAdView(view = shimmerLayout)
             }
+
 
             is BannerState.Success -> {
                 val view = state.view

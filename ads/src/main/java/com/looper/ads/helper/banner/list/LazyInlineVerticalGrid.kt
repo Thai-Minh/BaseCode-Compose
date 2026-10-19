@@ -47,7 +47,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.looper.ads.helper.banner.data.BannerState
 import com.looper.ads.conditional
 import com.looper.ads.createAdaptiveBannerShimmerLayout
-import com.looper.ads.isSupportAds
+import android.view.ViewGroup
+import com.looper.ads.helper.banner.getShimmerLayout
+import com.looper.ads.isSupportAdState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.ceil
 
 sealed class GridType
@@ -174,7 +177,8 @@ fun LazyInlineVerticalGrid(
     onItemBuilder: @Composable (item: Any) -> Unit = {}
 ) {
 
-    if (!isSupportAds || !canScroll) {
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds || !canScroll) {
         return LazyVerticalGrid(
             columns = gridType.toGridCells(),
             modifier = modifier,
@@ -258,9 +262,13 @@ fun LazyInlineVerticalGrid(
 
     LaunchedEffect(adResult) {
         adView = when (adResult) {
-            is BannerState.Loading -> context.createAdaptiveBannerShimmerLayout()
+            is BannerState.Loading -> {
+                (adResult as BannerState.Loading).bannerAdSize.getShimmerLayout(context = context)
+            }
 
-            is BannerState.Success -> (adResult as BannerState.Success).view
+            is BannerState.Success -> {
+                (adResult as BannerState.Success).view
+            }
 
             else -> null
         }

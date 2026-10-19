@@ -19,15 +19,14 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.looper.base"
+        // applicationId = "com.looper.base"
+        applicationId = "com.cubstudio.aiphotoeditor.photoenhance"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        base.archivesName = "app_name_V${versionName}"
 
         val appName = project.findProperty("appName") ?: "BaseApp"
         base.archivesName = "${appName}_V${versionName}"
@@ -44,6 +43,8 @@ android {
 
     buildTypes {
         debug {
+            versionNameSuffix = "-dev"
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -106,6 +107,7 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

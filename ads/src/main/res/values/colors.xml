@@ -6,4 +6,9 @@
     <color name="color_5ABA87">#5ABA87</color>
     <color name="color_74b48f">#74B48F</color>
     <color name="selected_bg_color">#4D8A8989</color>
+
+    <color name="color_020202">#020202</color>
+    <color name="color_FAFAFA">#FAFAFA</color>
+    <color name="color_EEEEEE">#EEEEEE</color>
+    <color name="color_D000000">#D00000</color>
 </resources>

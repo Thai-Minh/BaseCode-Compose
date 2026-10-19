@@ -1,6 +1,7 @@
 package com.looper.ads.helper.native_ad
 
 import android.content.Context
+import com.looper.ads.AdRevenueMetadata
 import com.looper.ads.AdUnits
 import com.looper.ads.AdjustManager
 import com.looper.ads.isSupportAds
@@ -15,6 +16,11 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -68,71 +74,89 @@ object NativeAdPreload {
     private val adCache = MutableStateFlow<Map<String, NativeAdState>>(emptyMap())
 
     fun preload(context: Context, adType: NativeAdType) {
-        runCatching {
-            if (isAlreadyPreloadAd(adType = adType)) return
-
-            preloadInternal(context = context, adType = adType)
-        }.onFailure {
-            // Log to Crashlytics non-fatal if needed
+        mainScope.launch {
+            ensureLoadStarted(context = context, adType = adType)
         }
+    }
+
+    suspend fun preloadAndAwait(
+        context: Context,
+        adType: NativeAdType,
+    ): Boolean {
+        if (!isSupportAds) return false
+
+        ensureLoadStarted(context = context, adType = adType)
+        return awaitPreloadResult(adType = adType)
     }
 
     fun reload(context: Context, adType: NativeAdType) {
-        mainScope.launch(Dispatchers.IO) {
-            if (!isSupportAds || queryNativeAd(adType) is NativeAdState.Loading) return@launch
+        mainScope.launch {
+            if (!isSupportAds) {
+                updateAdState(adType = adType, state = NativeAdState.Error)
+                return@launch
+            }
+            if (queryNativeAd(adType) is NativeAdState.Loading) return@launch
 
-            updateAdState(adType = adType, state = NativeAdState.Loading)
-            runLoadAd(context = context, adType = adType)
+            startLoad(context = context, adType = adType)
         }
     }
 
-    fun getNativeAd(
+    fun getNativeAd(context: Context, adType: NativeAdType, refreshAd: Boolean): Flow<NativeAdState?> {
+        return adCache
+            .map { map -> map[adType.name] }
+            .onStart {
+                ensureLoadStarted(context = context, adType = adType)
+            }
+    }
+
+    /**
+     * Runs on Main so checking the cache and publishing Loading are one serialized operation.
+     * This guarantees that preload(), preloadAndAwait() and getNativeAd() cannot start two SDK
+     * requests for the same placement at the same time.
+     */
+    private suspend fun ensureLoadStarted(
         context: Context,
         adType: NativeAdType,
-        refreshAd: Boolean
-    ): Flow<NativeAdState?> {
+    ) = withContext(Dispatchers.Main.immediate) {
+        if (!isSupportAds) {
+            updateAdState(adType = adType, state = NativeAdState.Error)
+            return@withContext
+        }
 
-        val isAlready = isAlreadyPreloadAd(adType)
+        when (queryNativeAd(adType = adType)) {
+            is NativeAdState.Loading,
+            is NativeAdState.Success -> Unit
 
-        if ((refreshAd && isAlready) || !isAlready)
-            preloadInternal(context = context, adType = adType)
-
-        return adCache.map { map ->
-
-            val value = map.entries.firstOrNull {
-                it.key == adType.name
-            }?.value
-
-            value
+            else -> startLoad(context = context, adType = adType)
         }
     }
 
-    private fun isAlreadyPreloadAd(adType: NativeAdType): Boolean {
-        val cache = queryNativeAd(adType = adType)
-
-        return cache is NativeAdState.Loading || cache is NativeAdState.Success
+    private fun startLoad(context: Context, adType: NativeAdType) {
+        updateAdState(adType = adType, state = NativeAdState.Loading)
+        mainScope.launch(Dispatchers.IO) {
+            runLoadAdSafely(context = context, adType = adType)
+        }
     }
 
-    private fun preloadInternal(
+    private suspend fun runLoadAdSafely(
         context: Context,
-        adType: NativeAdType
-    ) {
-        mainScope.launch(Dispatchers.IO) {
-
-            if (!isSupportAds) return@launch
-
-            updateAdState(adType = adType, state = NativeAdState.Loading)
-
+        adType: NativeAdType,
+    ): Boolean {
+        return try {
             runLoadAd(context = context, adType = adType)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            updateAdState(adType = adType, state = NativeAdState.Error)
+            false
         }
     }
 
     private suspend fun runLoadAd(
         context: Context,
-        adType: NativeAdType
-    ) {
+        adType: NativeAdType,
+    ): Boolean {
         val result = loadNativeAdInternal(context = context, adType = adType)
-
         val state = if (result == null) {
             NativeAdState.Error
         } else {
@@ -140,22 +164,32 @@ object NativeAdPreload {
         }
 
         updateAdState(adType = adType, state = state)
+        return result != null
+    }
+
+    private suspend fun awaitPreloadResult(adType: NativeAdType): Boolean {
+        val state = adCache
+            .map { cache -> cache[adType.name] }
+            .first { state ->
+                state is NativeAdState.Success || state is NativeAdState.Error
+            }
+
+        return state is NativeAdState.Success
     }
 
     private suspend fun loadNativeAdInternal(
         context: Context,
-        adType: NativeAdType
+        adType: NativeAdType,
     ): Pair<UnifiedNativeAdRender, String>? {
-
         if (!isSupportAds || MediationAd.getShared() == null) return null
 
         return suspendCancellableCoroutine { continuation ->
             NativeAdLoader.load(context, adType.adUnitId, object : NativeAdLoadCallBack {
                 override fun onAdFailedToLoad(error: AdError) {
-                    continuation.safeResume(null)
-
-                    mainScope.launch {
-                        updateAdState(adType, NativeAdState.Error)
+                    if (continuation.isActive) {
+                        continuation.safeResume(null)
+                    } else {
+                        updateAdState(adType = adType, state = NativeAdState.Error)
                     }
                 }
 
@@ -163,46 +197,43 @@ object NativeAdPreload {
                     if (continuation.isActive) {
                         continuation.safeResume(ad to adUnitId)
                     } else {
-                        mainScope.launch {
-                            updateAdState(
-                                adType = adType,
-                                state = NativeAdState.Success(
-                                    adUnitId = adUnitId,
-                                    nativeAd = ad
-                                )
-                            )
-                        }
+                        updateAdState(
+                            adType = adType,
+                            state = NativeAdState.Success(
+                                adUnitId = adUnitId,
+                                nativeAd = ad,
+                            ),
+                        )
                     }
                 }
 
                 override fun onPaidEvent(
                     currencyCode: String,
-                    valueMicros: Long
+                    valueMicros: Long,
                 ) {
-                    AdjustManager.trackAdRevenue(revenue = valueMicros, currency = currencyCode)
+                    AdjustManager.trackAdRevenue(
+                        revenue = valueMicros,
+                        currency = currencyCode,
+                        metadata = AdRevenueMetadata(adFormat = "native", placement = adType.adUnitId),
+                    )
                 }
             })
         }
     }
 
-    private suspend fun updateAdState(adType: NativeAdType, state: NativeAdState) {
-        withContext(Dispatchers.Main) {
-            adCache.value = adCache.value.toMutableMap().apply {
-                this[adType.name] = state
-            }
+    private fun updateAdState(adType: NativeAdType, state: NativeAdState) {
+        adCache.update { cache ->
+            cache + (adType.name to state)
         }
     }
 
     private fun queryNativeAd(adType: NativeAdType): NativeAdState? {
-        return adCache.value.entries.firstOrNull {
-            it.key == adType.name
-        }?.value
+        return adCache.value[adType.name]
     }
 
     fun removeCacheNativeAds(adType: NativeAdType) {
-        adCache.value = adCache.value.toMutableMap().filterNot {
-            it.key == adType.name && it.value != NativeAdState.Loading
+        adCache.update { cache ->
+            if (cache[adType.name] is NativeAdState.Loading) cache else cache - adType.name
         }
     }
-
 }

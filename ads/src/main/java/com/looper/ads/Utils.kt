@@ -32,11 +32,11 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.roundToInt
 
 fun Context.createAdaptiveBannerShimmerLayout(): View {
-    return View.inflate(this, R.layout.inline_adaptive_banner_shimmer, null)
+    return View.inflate(this, R.layout.adaptive_banner_shimmer, null)
 }
 
-fun Context.createBannerShimmerLayout(): View {
-    return View.inflate(this, R.layout.adaptive_banner_shimmer, null)
+fun Context.createInlineAdaptiveBannerShimmerLayout(): View {
+    return View.inflate(this, R.layout.inline_adaptive_banner_shimmer, null)
 }
 
 fun ViewGroup.synchronizedAdView(view: View, params: ViewGroup.LayoutParams? = null) {
@@ -133,6 +133,10 @@ fun ComponentActivity.launchWhenResumed(block: CoroutineScope.() -> Unit) {
 }
 
 suspend fun Lifecycle.awaitResumed() = suspendCancellableCoroutine { continuation ->
+    if (currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+        continuation.safeResume(Unit)
+        return@suspendCancellableCoroutine
+    }
     if (currentState == Lifecycle.State.DESTROYED) {
         continuation.resumeWithException(LifecycleDestroyedException())
         return@suspendCancellableCoroutine

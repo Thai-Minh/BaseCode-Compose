@@ -11,7 +11,9 @@ import androidx.compose.ui.unit.dp
 import com.looper.ads.R
 import com.looper.ads.helper.native_ad.NativeAdOnlyIcon
 import com.looper.ads.helper.native_ad.NativeAdType
-import com.looper.ads.isSupportAds
+import com.looper.ads.isSupportAdState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 enum class RippleType(val resId: Int) {
     Circle(resId = R.drawable.selectable_circle_transparent),
@@ -24,7 +26,10 @@ fun SmallNativeAdHouseIcon(
     sizeBound: Dp = 48.dp,
     rippleType: RippleType = RippleType.Half
 ) {
-    if (!isSupportAds) return
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds) {
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -43,7 +48,10 @@ fun BigNativeAdHouseIcon(
     sizeBound: Dp = 56.dp,
     rippleType: RippleType = RippleType.Half
 ) {
-    if (!isSupportAds) return
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds) {
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -63,7 +71,10 @@ fun MediumNativeAdHouseIcon(
     sizeBound: Dp = 48.dp,
     rippleType: RippleType = RippleType.Half
 ) {
-    if (!isSupportAds) return
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds) {
+        return
+    }
 
     Box(
         modifier = Modifier

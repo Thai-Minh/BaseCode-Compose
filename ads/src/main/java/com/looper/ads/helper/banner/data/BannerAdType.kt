@@ -5,7 +5,7 @@ import androidx.compose.ui.unit.dp
 
 enum class BannerAdType(
     val adUnitId: String,
-    val bannerAdSize: BannerAdSize = BannerAdSize.InlineBanner,
+    val bannerAdSize: BannerAdSize = BannerAdSize.InlineSmartBanner,
     val removable: Boolean = true,
     val bannerPadding: PaddingValues = PaddingValues(horizontal = 0.dp),
 ) {

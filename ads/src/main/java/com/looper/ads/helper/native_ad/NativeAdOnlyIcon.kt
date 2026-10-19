@@ -23,7 +23,7 @@ import com.looper.ads.dp2Px
 import com.looper.ads.helper.native_ad.ui.BoxSpace
 import com.looper.ads.helper.native_ad.ui.NativeAdLifecycle
 import com.looper.ads.helper.native_ad.ui.NativeSpace
-import com.looper.ads.isSupportAds
+import com.looper.ads.isSupportAdState
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 
 @Composable
@@ -34,7 +34,10 @@ fun NativeAdOnlyIcon(
     space: NativeSpace = NativeSpace(),
     rippleId: Int,
 ) {
-    if (!isSupportAds) return
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds) {
+        return
+    }
 
     val app = LocalContext.current.applicationContext as Application
     val viewModel: NativeAdViewModel = viewModel(

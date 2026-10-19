@@ -3,18 +3,33 @@ package com.looper.ads
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.looper.ads.AdsDataPreference.intersAutoCloseDelayMs
+import com.looper.ads.AdsDataPreference.intersSplashAllowAutoClose
 import com.looper.ads.dialog.WelcomeBackDialog
 import com.zenith.template_appopenad.AppOpenAdManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.lang.ref.WeakReference
+import java.util.WeakHashMap
+import kotlin.collections.set
+import kotlin.time.Duration.Companion.milliseconds
 
 const val REQUEST_SPLASH_TIME_OUT = 5000L
 const val REQUEST_INTERSTITIAL_TIME_OUT = 5000L
 const val REQUEST_REWARDED_TIME_OUT = 10000L
+
+private val myActivity = listOf(
+    "ProxyBillingActivity",
+    "MainActivity",
+)
 
 object AdsManager : DefaultLifecycleObserver {
     private lateinit var instance: Application
@@ -31,6 +46,8 @@ object AdsManager : DefaultLifecycleObserver {
     var isShowAppOpen: Boolean = true
         private set
 
+    var isWelcomeBackDialogEnabled: Boolean = true
+
     var isShowBannerHome: Boolean = true
         private set
 
@@ -46,6 +63,10 @@ object AdsManager : DefaultLifecycleObserver {
     var rewardTimeoutMs: Long = REQUEST_REWARDED_TIME_OUT
         private set
 
+    var ignoreAutoCloseAdFullScreen = false
+
+    private val adCloseJobs = WeakHashMap<Activity, Job>()
+
     fun init(app: Application) {
         instance = app
 
@@ -53,14 +74,39 @@ object AdsManager : DefaultLifecycleObserver {
 
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) {
+
+                Log.d("MTHAI", "onActivityResumed: $activity")
+
+                val activityName = activity::class.java.simpleName
+
+                if (!myActivity.contains(activityName)) {
+                    if (intersSplashAllowAutoClose && !ignoreAutoCloseAdFullScreen) {
+                        adCloseJobs[activity]?.cancel()
+
+                        adCloseJobs[activity] = MainScope().launch {
+                            delay(intersAutoCloseDelayMs.milliseconds)
+
+                            if (!activity.isFinishing && !activity.isDestroyed) {
+                                activity.finish()
+                            }
+                        }
+                    }
+                }
+
                 currentActivity = WeakReference(activity)
 
-                if (isDisableAppOpenAd(activity = activity)) {
+                if (isWelcomeBackDialogEnabled && isDisableAppOpenAd(activity = activity)) {
                     handleTemporarilyAppOpenResumed(isEnable = false)
                 }
             }
 
-            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityPaused(activity: Activity) {
+                val activityName = activity::class.java.simpleName
+
+                if (!myActivity.contains(activityName)) {
+                    adCloseJobs[activity]?.cancel()
+                }
+            }
 
             override fun onActivityCreated(a: Activity, b: Bundle?) {}
 
@@ -73,7 +119,10 @@ object AdsManager : DefaultLifecycleObserver {
             }
 
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            override fun onActivityDestroyed(a: Activity) {
+
+            override fun onActivityDestroyed(activity: Activity) {
+                adCloseJobs[activity]?.cancel()
+                adCloseJobs.remove(activity)
             }
         })
     }
@@ -167,18 +216,20 @@ object AdsManager : DefaultLifecycleObserver {
         if (activity !is AppCompatActivity) return false
 
         return when (activity::class.java.simpleName) {
-            "MainActivity", "MainIAPActivity" -> true
+            "MainActivity", "IapTestActivity" -> true
             else -> false
         }
     }
 
     private fun showAppOpenIfNeeded(activity: FragmentActivity) {
+        if (!isWelcomeBackDialogEnabled) return
+
         if (ignoreAppOpenAdOnetime) {
             ignoreAppOpenAdOnetime = false
             return
         }
 
-        if (!activity.isFinishing && !activity.isDestroyed) {
+        if (!activity.isFinishing && !activity.isDestroyed && !activity.supportFragmentManager.isStateSaved) {
             WelcomeBackDialog.newInstance()
                 .showOnce(activity.supportFragmentManager, "WelcomeBackDialog")
         }

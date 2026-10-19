@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.looper.ads.AdRevenueMetadata
 import com.looper.ads.AdUnits
 import com.looper.ads.AdjustManager
 import com.looper.ads.AdsManager
@@ -148,7 +149,7 @@ object InterstitialController {
     ) {
         val mediationAd = MediationAd.getShared()
 
-        val acceptShow = mediationAd != null && mediationAd.getAdUnit(type.adUnitId) != null
+        val acceptShow = mediationAd?.getAdUnit(type.adUnitId) != null
 
         if (!isSupportAds || !acceptShow) {
             callbackOnMain(
@@ -215,7 +216,7 @@ object InterstitialController {
 
         var dialog: DialogFragment? = null
 
-        if (showLoadingDialog && activity is AppCompatActivity) {
+        if (showLoadingDialog && activity is AppCompatActivity && !activity.isFinishing && !activity.isDestroyed) {
             dialog = SponsorLoadingDialog.newInstance().apply {
                 showOnce(activity.supportFragmentManager, "SponsorLoadingDialogFragment")
             }
@@ -238,23 +239,27 @@ object InterstitialController {
 
         val elapsedTime = System.currentTimeMillis() - startTime
 
-        if (elapsedTime < 1000)
+        if (elapsedTime < 1000) {
             delay((1000 - elapsedTime).milliseconds)
+        }
 
         activity.lifecycle.awaitResumed()
 
-        dialog?.dismiss()
+        if (dialog?.isAdded == true) {
+            dialog.dismissAllowingStateLoss()
+        }
 
-        return runShowAd(activity = activity, interAd = interAd)
+        return runShowAd(activity = activity, interAd = interAd, placement = type.adUnitId)
     }
 
     private suspend fun runShowAd(
         activity: ComponentActivity,
-        interAd: InterstitialAd?
+        interAd: InterstitialAd?,
+        placement: String,
     ): InterAdState =
         suspendCancellableCoroutine { continuation ->
             if (interAd == null) {
-                continuation.safeResume(LoadError)
+                continuation.safeResume(InterAdState.LoadError)
             } else {
                 interAd.setFullScreenContentCallback(object : FullScreenContentCallback {
                     override fun onAdDismissedFullScreenContent() {
@@ -271,7 +276,8 @@ object InterstitialController {
                     ) {
                         AdjustManager.trackAdRevenue(
                             revenue = valueMicros,
-                            currency = currencyCode
+                            currency = currencyCode,
+                            metadata = AdRevenueMetadata(adFormat = "interstitial", placement = placement),
                         )
                     }
                 })

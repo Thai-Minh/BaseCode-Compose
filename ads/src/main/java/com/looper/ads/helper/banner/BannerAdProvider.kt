@@ -1,8 +1,8 @@
 package com.looper.ads.helper.banner
 
 import android.content.Context
-import android.os.Bundle
 import android.view.View
+import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,36 +34,51 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.isVisible
-import com.looper.admob_v2.AdmobAdapter
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.looper.ads.AdjustManager
+import com.looper.ads.R
 import com.looper.ads.createAdaptiveBannerShimmerLayout
-import com.looper.ads.createBannerShimmerLayout
+import com.looper.ads.createInlineAdaptiveBannerShimmerLayout
 import com.looper.ads.helper.banner.data.BannerAdSize
 import com.looper.ads.helper.banner.data.BannerAdType
 import com.looper.ads.helper.banner.data.BannerState
+import com.looper.ads.helper.banner.data.getAdSize
 import com.looper.ads.helper.native_ad.ui.HorizontalBaseLine
-import com.looper.ads.isSupportAds
+import com.looper.ads.isSupportAdState
 import com.zenith.adapter.AdError
-import com.zenith.adapter.AdRequest
 import com.zenith.adapter.AdSize
 import com.zenith.adsdk.AdListener
 import com.zenith.adsdk.format.AdView
 import kotlin.math.roundToInt
+import com.looper.ads.helper.banner.data.getAdSize as resolvedAdSize
 
 fun BannerAdSize.getAdSize(width: Int = -1): AdSize {
-    return when (this) {
-        BannerAdSize.AdaptiveBanner -> AdSize.SMART_BANNER
-        BannerAdSize.InlineBanner -> AdSize.inline(width)
-        else -> AdSize.BANNER
-    }
+    return resolvedAdSize(width = width)
 }
 
 fun BannerAdSize.getShimmerLayout(
     context: Context,
+    adSize: AdSize? = null,
 ): View {
     return when (this) {
-        BannerAdSize.InlineBanner -> context.createAdaptiveBannerShimmerLayout()
-        else -> context.createBannerShimmerLayout()
+        BannerAdSize.InlineSmartBanner, BannerAdSize.InlineMediumBanner -> {
+            context.createInlineAdaptiveBannerShimmerLayout()
+        }
+
+        else -> {
+            context.createAdaptiveBannerShimmerLayout().apply {
+                val shimmerHeight =
+                    adSize?.getHeightInPixels(context) ?: this@getShimmerLayout.getAdSize()
+                        .getHeightInPixels(context)
+
+                layoutParams =
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, shimmerHeight)
+
+                findViewById<View>(R.id.banner_shimmer_placeholder)
+                    ?.layoutParams
+                    ?.height = shimmerHeight
+            }
+        }
     }
 }
 
@@ -93,15 +110,40 @@ val LocalBannerState = compositionLocalOf { BannerUiState() }
 fun BannerAdProvider(
     contentBannerPadding: PaddingValues = PaddingValues(all = 0.dp),
     type: BannerAdType,
+    modifier: Modifier = Modifier,
+    applyNavigationBarsPadding: Boolean = true,
+    onAdLoading: () -> Unit = {},
+    onAdLoaded: () -> Unit = {},
+    onAdFailed: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
     viewBelow: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
     content: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    val currentOnAdLoading = rememberUpdatedState(onAdLoading)
+    val currentOnAdLoaded = rememberUpdatedState(onAdLoaded)
+    val currentOnAdFailed = rememberUpdatedState(onAdFailed)
 
     val container = remember(key1 = type) {
-        BannerWrapper(context = context, bannerAdType = type).apply { visibility = View.VISIBLE }
+        BannerWrapper(
+            context = context,
+            bannerAdType = type,
+            onStateChanged = { state ->
+                when (state) {
+                    is BannerState.Loading -> currentOnAdLoading.value()
+                    is BannerState.Success -> currentOnAdLoaded.value()
+                    BannerState.Error -> currentOnAdFailed.value()
+                }
+            },
+        ).apply {
+            visibility = View.VISIBLE
+        }
+    }
+
+    LaunchedEffect(supportAds) {
+        if (!supportAds) currentOnAdFailed.value()
     }
 
     DisposableEffect(key1 = type) {
@@ -114,9 +156,13 @@ fun BannerAdProvider(
     val bannerUiState = remember { BannerUiState() }
     var bannerHeight by remember { mutableIntStateOf(0) }
 
-    Box {
+    Box(modifier = modifier) {
 
-        val navigationBarHeight = WindowInsets.navigationBars.getBottom(LocalDensity.current)
+        val navigationBarHeight = if (applyNavigationBarsPadding) {
+            WindowInsets.navigationBars.getBottom(LocalDensity.current)
+        } else {
+            0
+        }
         val bannerPadding = with(density) {
             BannerPadding(
                 heightDp = bannerHeight.toDp(),
@@ -133,7 +179,13 @@ fun BannerAdProvider(
 
             content()
 
-            if (isSupportAds && isShowingBanner) {
+            if (supportAds && isShowingBanner) {
+                val navigationBarModifier = if (applyNavigationBarsPadding) {
+                    Modifier.navigationBarsPadding()
+                } else {
+                    Modifier
+                }
+
                 Column(
                     modifier = Modifier
                         .align(
@@ -149,7 +201,7 @@ fun BannerAdProvider(
                             }
                         )
                         .wrapContentSize()
-                        .navigationBarsPadding()
+                        .then(navigationBarModifier)
                         .padding(paddingValues = contentBannerPadding)
                         .onSizeChanged {
                             bannerHeight = it.height

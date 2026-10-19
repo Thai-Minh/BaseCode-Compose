@@ -39,6 +39,15 @@ dependencyResolutionManagement {
                 this.password = password
             }
         }
+
+        maven {
+            url = URI.create("https://maven.pkg.github.com/Thai-Minh/IAP-SDK")
+            isAllowInsecureProtocol = true
+            credentials {
+                this.username = username
+                this.password = password
+            }
+        }
     }
 }
 

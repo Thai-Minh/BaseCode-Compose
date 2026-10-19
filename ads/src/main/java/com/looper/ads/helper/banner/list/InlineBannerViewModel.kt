@@ -28,19 +28,20 @@ class InlineBannerViewModel(
     private val bannerType: BannerAdType
 ) : ViewModel() {
 
-    private val _bannerAdResult = MutableStateFlow<BannerState>(BannerState.Loading)
-    val bannerAdResult: StateFlow<BannerState> get() = _bannerAdResult
+    val bannerAdResult: StateFlow<BannerState>
+        field = MutableStateFlow<BannerState>(BannerState.Loading())
 
     private var collectJob: Job? = null
 
     fun init(context: Context, paddingList: PaddingValues) {
+        collectJob?.cancel()
         collectJob = viewModelScope.launch {
             BannerAdPreload.getAdView(
                 context = context,
                 cacheAdType = bannerType,
-                paddingList = paddingList
+                padding = paddingList
             ).collect {
-                _bannerAdResult.value = it
+                bannerAdResult.value = it
             }
         }
     }
@@ -49,7 +50,7 @@ class InlineBannerViewModel(
         BannerAdPreload.preload(
             context = context,
             cacheAdType = bannerType,
-            paddingList = paddingList
+            padding = paddingList
         )
 
     override fun onCleared() {

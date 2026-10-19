@@ -14,6 +14,17 @@ const val ADJUST_AD_IMPRESSION = "" // TODO
 
 object AdjustManager {
 
+    @Volatile
+    private var paidEventListener: ((String, Long, AdRevenueMetadata) -> Unit)? = null
+
+    fun setPaidEventListener(listener: (String, Long, AdRevenueMetadata) -> Unit) {
+        paidEventListener = listener
+    }
+
+    fun setPaidEventListener(listener: (String, Long) -> Unit) {
+        paidEventListener = { currency, micros, _ -> listener(currency, micros) }
+    }
+
     fun initAdjustSDK(
         application: Application,
         isDebug: Boolean,
@@ -33,21 +44,27 @@ object AdjustManager {
         adRevenueSource: String = ADMOB_SOURCE,
         revenue: Long,
         currency: String,
-        adImpressionEventToken: String = ADJUST_AD_IMPRESSION
+        adImpressionEventToken: String = ADJUST_AD_IMPRESSION,
+        metadata: AdRevenueMetadata = AdRevenueMetadata(),
     ) {
         val adjustAdRevenue = AdjustAdRevenue(adRevenueSource)
-        adjustAdRevenue.setRevenue(revenue / 1000000.0, currency)
+        adjustAdRevenue.setRevenue(revenueInCurrency(valueMicros = revenue), currency)
         // adjustAdRevenue.addPartnerParameter("key", "value")
         Adjust.trackAdRevenue(adjustAdRevenue)
+        dispatchPaidEvent(currency = currency, revenue = revenue, metadata = metadata)
 
         if (adImpressionEventToken.isNotEmpty()) {
             trackRevenueEvent(adImpressionEventToken, revenue, currency)
         }
     }
 
+    internal fun dispatchPaidEvent(currency: String, revenue: Long, metadata: AdRevenueMetadata) {
+        paidEventListener?.invoke(currency, revenue, metadata)
+    }
+
     fun trackRevenueEvent(eventToken: String, revenue: Long, currency: String) {
         val adjustEvent = AdjustEvent(eventToken)
-        adjustEvent.setRevenue(revenue / 1000000.0, currency)
+        adjustEvent.setRevenue(revenueInCurrency(valueMicros = revenue), currency)
         // adjustEvent.addCallbackParameter("key", "value")
         // adjustEvent.addPartnerParameter("key", "value")
         Adjust.trackEvent(adjustEvent)

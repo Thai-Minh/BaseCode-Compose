@@ -53,7 +53,7 @@ class WelcomeBackDialog : DialogFragment() {
     }
 
     fun showOnce(manager: FragmentManager, tag: String) {
-        if (manager.findFragmentByTag(tag) == null) {
+        if (!manager.isDestroyed && !manager.isStateSaved && !isAdded && manager.findFragmentByTag(tag) == null) {
             show(manager, tag)
         }
     }

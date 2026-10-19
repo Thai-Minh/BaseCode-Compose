@@ -15,7 +15,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.viewbinding.ViewBinding
-import com.looper.base.iap.utils.finishActivityFadeOutAnimation
 import java.util.Locale
 
 abstract class BaseActivity<T : ViewBinding> : AppCompatActivity() {
@@ -23,7 +22,6 @@ abstract class BaseActivity<T : ViewBinding> : AppCompatActivity() {
     protected lateinit var binding: T
 
     companion object {
-        const val IAP_SUCCESS = "IAP_SUCCESS"
         private const val LANGUAGE_CODE_KEY = "language_code_key"
     }
 
@@ -105,14 +103,6 @@ abstract class BaseActivity<T : ViewBinding> : AppCompatActivity() {
         getCurrentLanguageCode(context)?.let { languageCode ->
             intent.putExtra(LANGUAGE_CODE_KEY, languageCode)
         }
-    }
-
-    fun finishWithIAPState(isSuccess: Boolean) {
-        val data = Intent().apply {
-            putExtra(IAP_SUCCESS, isSuccess)
-        }
-        setResult(RESULT_OK, data)
-        finishActivityFadeOutAnimation()
     }
 
     fun wrapLanguage(context: Context, intent: Intent): Intent {

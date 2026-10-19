@@ -61,6 +61,8 @@ import com.zenith.adapter.format.UnifiedNativeAdRender
 import com.zenith.adapter.ui.UnifiedNativeAdViewBinder
 import com.zenith.adsdk.MediationAd
 import com.zenith.adsdk.format.NativeAdLoader
+import com.zenith.template_native.NativeAdTemplatesBinder
+import com.zenith.template_native.OrigoNativeAdStyle
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -98,6 +100,7 @@ fun NativeAd(
     modifier: Modifier = Modifier,
     adType: NativeAdType,
     key: String? = "",
+    refreshAd: Boolean = !key.isNullOrEmpty(),
     space: NativeSpace = NativeSpace(),
     @LayoutRes shimmerLayoutId: Int,
     @LayoutRes contentLayoutId: Int,
@@ -107,6 +110,7 @@ fun NativeAd(
     onAdLoading: () -> Unit = {},
     onAdLoaded: () -> Unit = {},
     onAdFailed: () -> Unit = {},
+    onCollapsibleListener: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
     viewBelow: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
 ) {
@@ -116,7 +120,8 @@ fun NativeAd(
 
     val mediationAd = MediationAd.getShared()
 
-    val canShowAny = supportAds && mediationAd != null && mediationAd.getAdUnit(adType.adUnitId) != null
+    val canShowAny =
+        supportAds && mediationAd != null && mediationAd.getAdUnit(adType.adUnitId) != null
 
     LaunchedEffect(key1 = canShowAny) {
         if (!canShowAny) {
@@ -134,13 +139,13 @@ fun NativeAd(
         factory = NativeAdViewModelFactory(
             app = app,
             type = adType,
-            refreshAd = !key.isNullOrEmpty()
+            refreshAd = refreshAd,
         )
     )
 
     val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(NativeAdState.Loading)
 
-    LaunchedEffect(key1 = key, key2 = viewModel) {
+    LaunchedEffect(viewModel, key) {
         viewModel.forceRefreshAd()
     }
 
@@ -200,8 +205,7 @@ fun NativeAd(
 
                     val adUnitId = adType.adUnitId
 
-                    val enableCollapsible =
-                        MediationAd.getShared()?.isAdUnitCollapsible(adType.adUnitId) == true
+                    val enableCollapsible = MediationAd.getShared()?.isAdUnitCollapsible(adUnitId) == true
 
                     NativeAdView(
                         modifier = customModifier,
@@ -212,7 +216,8 @@ fun NativeAd(
                         enableCollapsible = enableCollapsible,
                         goneAllAfterCollapsible = adType.goneAllAfterCollapsible,
                         isShowHeadlineAdvertiserLogo = isShowHeadlineAdvertiserLogo,
-                        isSupportIconAnim = isSupportIconAnim
+                        isSupportIconAnim = isSupportIconAnim,
+                        onCollapsibleListener = onCollapsibleListener,
                     )
                 } else {
                     ShimmerView(
@@ -234,8 +239,10 @@ private fun ShimmerView(
 ) {
     AndroidView(
         factory = { context ->
-            LayoutInflater.from(context).inflate(
-                shimmerLayoutId, FrameLayout(context), false
+            NativeAdTemplatesBinder.buildShimmer(
+                context,
+                shimmerLayoutId,
+                createOrigoNativeAdStyle()
             )
         },
         modifier = modifier.padding(),
@@ -253,7 +260,8 @@ fun NativeAdView(
     enableCollapsible: Boolean,
     goneAllAfterCollapsible: Boolean,
     isShowHeadlineAdvertiserLogo: Boolean = true,
-    isSupportIconAnim: Boolean = false
+    isSupportIconAnim: Boolean = false,
+    onCollapsibleListener: () -> Unit = {},
 ) {
     AndroidView(
         modifier = modifier,
@@ -272,7 +280,9 @@ fun NativeAdView(
                     buttonCallToAction = R.id.native_call_to_action,
                     expandedLayout = R.id.native_call_to_action_expand_layout,
                     collapsibleLayout = R.id.native_call_to_action_collapsible_layout
-                )
+                ).also { binder ->
+                    createOrigoNativeAdStyle().applyTo(binder)
+                }
 
             parent.addViewAds(
                 adUnitId = adUnitId,
@@ -282,6 +292,16 @@ fun NativeAdView(
         }
     )
 }
+
+private fun createOrigoNativeAdStyle() = OrigoNativeAdStyle()
+    .setAdvertiserAttributionDrawableRes(R.drawable.ic_ad_top_left) // for update logo Ads
+    .setRootBackgroundColorRes(R.color.color_020202)
+    .setHeadlineTextColorRes(R.color.color_FAFAFA)
+    .setBodyTextColorRes(R.color.color_EEEEEE)
+//    .setIconGroupBackgroundColorRes(R.color.color_F74F23)
+    .setCallToActionBackgroundDrawableRes(
+        R.drawable.ripple_round_button_gradient
+    )
 
 private fun ViewGroup.addViewAds(
     adUnitId: String,
@@ -383,7 +403,9 @@ fun UnifiedNativeAdViewBinder.Builder.buildDefault(
     goneAllAfterCollapsible: Boolean = true,
     buttonCallToAction: Int = R.id.native_call_to_action,
     expandedLayout: Int = R.id.native_call_to_action_expand_layout, // nếu là native thường thì truyền id button vào đây
-    collapsibleLayout: Int = R.id.native_call_to_action_collapsible_layout
+    collapsibleLayout: Int = R.id.native_call_to_action_collapsible_layout,
+    onCollapsibleListener: UnifiedNativeAdViewBinder.OnCollapsibleListener =
+        UnifiedNativeAdViewBinder.OnCollapsibleListener {}
 ): UnifiedNativeAdViewBinder {
 
     return setHeadlineResId(R.id.native_headline)
@@ -406,6 +428,7 @@ fun UnifiedNativeAdViewBinder.Builder.buildDefault(
         .setRandomClickCollapsibleTime(3000)
         .setShowHeadlineAdvertiserLogo(enableCollapsible)
         .setCollapsibleActionChancePercent(50)
+        .setOnCollapsibleListener(onCollapsibleListener)
         .build()
 }
 
@@ -433,7 +456,10 @@ fun HorizontalBaseLine(
     paddingContent: PaddingValues = PaddingValues(),
     paddingLine: PaddingValues = PaddingValues(),
 ) {
-    if (!isSupportAds) return
+    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
+    if (!supportAds) {
+        return
+    }
 
     Column(modifier = Modifier.padding(paddingValues = paddingContent)) {
         Spacer(

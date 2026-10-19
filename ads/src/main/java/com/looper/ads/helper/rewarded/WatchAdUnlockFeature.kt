@@ -19,10 +19,11 @@ suspend fun FragmentActivity.showRewardedAdUnlockFeature(
     isShowAds: Boolean,
     trackEventShowAd: (Boolean) -> Unit = {}
 ): Boolean? {
-    if (!isShowAds)
+    if (!isShowAds) {
         return false
+    }
 
-    return showRewardedAdUnlockFeature(adType = adType, trackEventShowAd)
+    return showRewardedAdUnlockFeature(adType = adType, trackEventShowAd = trackEventShowAd)
 }
 
 suspend fun FragmentActivity.showRewardedAdUnlockFeature(

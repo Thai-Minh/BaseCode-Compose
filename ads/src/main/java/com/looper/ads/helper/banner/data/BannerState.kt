@@ -5,6 +5,14 @@ import com.zenith.adsdk.format.AdView
 
 sealed class BannerState {
     data object Error : BannerState()
-    data object Loading : BannerState()
-    data class Success(val view: AdView, val size: AdSize) : BannerState()
+
+    data class Loading(
+        val size: AdSize = AdSize.SMART_BANNER,
+        val bannerAdSize: BannerAdSize = BannerAdSize.AdaptiveBanner,
+    ) : BannerState()
+
+    data class Success(
+        val view: AdView,
+        val size: AdSize
+    ) : BannerState()
 }

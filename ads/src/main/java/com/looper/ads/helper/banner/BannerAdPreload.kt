@@ -6,82 +6,176 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
+import com.looper.ads.getWidthScreen
+import com.looper.ads.helper.banner.data.BannerAdSize
 import com.looper.ads.helper.banner.data.BannerAdType
 import com.looper.ads.helper.banner.data.BannerState
 import com.looper.ads.helper.banner.data.getAdSize
-import com.looper.ads.helper.banner.data.getBundle
-import com.looper.ads.getWidthScreen
+import com.looper.ads.helper.banner.data.resolveBannerAdSize
 import com.looper.ads.isSupportAds
 import com.zenith.adapter.AdSize
+import com.zenith.adapter.Collapsible
+import com.zenith.adsdk.MediationAd
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlin.collections.filter
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 object BannerAdPreload {
     private val bannerAdCache = MutableStateFlow<Map<BannerAdType, BannerState>>(emptyMap())
+    private val requestCounter = AtomicLong()
+    private val activeRequests = ConcurrentHashMap<BannerAdType, Long>()
+    private val activeSignatures = ConcurrentHashMap<BannerAdType, String>()
 
     fun preload(
         context: Context,
         cacheAdType: BannerAdType,
-        paddingList: PaddingValues = PaddingValues()
+        padding: PaddingValues = PaddingValues()
     ) {
         if (!isSupportAds) return
 
-        val oldBannerAdView = queryBannerAdView(cacheAdType)
+        val effectiveBannerAdSize = cacheAdType.resolveBannerAdSize()
 
-        if (oldBannerAdView is BannerState.Loading || oldBannerAdView is BannerState.Success)
-            return
-
-        addOrReplace(cacheAdType = cacheAdType, bannerState = BannerState.Loading)
-
-        loadAd(
+        val effectiveAdSize = getAdSize(
             context = context,
-            adUnitId = cacheAdType.adUnitId,
-            adSize = getAdSize(
-                context = context,
-                type = cacheAdType,
-                paddingList = paddingList
-            ),
-//            extras = cacheAdType.bannerAdSize.getBundle()
+            bannerAdSize = effectiveBannerAdSize,
+            padding = padding,
+        )
+
+        val requestSignature = createRequestSignature(
+            cacheAdType = cacheAdType,
+            bannerAdSize = effectiveBannerAdSize,
+            adSize = effectiveAdSize,
+        )
+
+        val oldState = queryBannerAdView(cacheAdType)
+
+        if (
+            activeSignatures[cacheAdType] == requestSignature &&
+            (oldState is BannerState.Loading && oldState.size == effectiveAdSize || oldState is BannerState.Success && oldState.size == effectiveAdSize)
         ) {
-            addOrReplace(cacheAdType = cacheAdType, bannerState = it)
+            return
+        }
+
+        if (oldState is BannerState.Success) {
+            oldState.view.destroy()
+        }
+
+        val requestId = requestCounter.incrementAndGet()
+
+        activeRequests[cacheAdType] = requestId
+        activeSignatures[cacheAdType] = requestSignature
+
+        addOrReplace(
+            cacheAdType = cacheAdType,
+            bannerState = BannerState.Loading(
+                size = effectiveAdSize,
+                bannerAdSize = effectiveBannerAdSize,
+            ),
+        )
+
+        try {
+            loadAd(
+                context = context,
+                adUnitId = cacheAdType.adUnitId,
+                adSize = effectiveAdSize,
+            ) { state ->
+                if (activeRequests[cacheAdType] != requestId) {
+                    if (state is BannerState.Success)
+                        state.view.destroy()
+
+                    return@loadAd
+                }
+
+                addOrReplace(cacheAdType = cacheAdType, bannerState = state)
+            }
+        } catch (_: Exception) {
+            if (activeRequests[cacheAdType] == requestId) {
+                addOrReplace(cacheAdType = cacheAdType, bannerState = BannerState.Error)
+            }
+        }
+    }
+
+    suspend fun preloadAndAwait(
+        context: Context,
+        cacheAdType: BannerAdType,
+        padding: PaddingValues = PaddingValues(),
+    ): Boolean {
+        if (!isSupportAds) return false
+
+        val expectedSize = getAdSize(
+            context = context,
+            bannerAdSize = cacheAdType.resolveBannerAdSize(),
+            padding = padding,
+        )
+        return try {
+            withContext(Dispatchers.Main.immediate) {
+                preload(
+                    context = context,
+                    cacheAdType = cacheAdType,
+                    padding = padding,
+                )
+            }
+
+            !(!isSupportAds || queryBannerAdView(cacheAdType) == null) && awaitPreloadResult(cacheAdType, expectedSize)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            withContext(Dispatchers.Main.immediate) {
+                if (queryBannerAdView(cacheAdType) is BannerState.Loading) {
+                    addOrReplace(cacheAdType, BannerState.Error)
+                }
+            }
+            false
         }
     }
 
     fun getAdView(
         context: Context,
         cacheAdType: BannerAdType,
-        paddingList: PaddingValues = PaddingValues()
+        padding: PaddingValues = PaddingValues()
     ): Flow<BannerState> {
-        val oldBannerAdView = queryBannerAdView(cacheAdType)
-
-        if (oldBannerAdView == null || oldBannerAdView is BannerState.Error)
-            preload(context = context, cacheAdType = cacheAdType, paddingList = paddingList)
+        preload(context = context, cacheAdType = cacheAdType, padding = padding)
 
         return bannerAdCache.map { map ->
-            val value = map.entries.firstOrNull { it.key == cacheAdType }?.value
-            value ?: BannerState.Error
+            map.entries.firstOrNull { it.key == cacheAdType }?.value ?: BannerState.Error
         }
     }
 
     fun removeAdView(cacheAdType: BannerAdType) {
-        val oldView = queryBannerAdView(cacheAdType)
+        activeRequests.remove(cacheAdType)
+        activeSignatures.remove(cacheAdType)
 
-        if (oldView == null || oldView is BannerState.Loading) return
+        val oldView = queryBannerAdView(cacheAdType) ?: return
 
-        if (oldView is BannerState.Success)
+        if (oldView is BannerState.Success) {
             oldView.view.destroy()
+        }
 
-        bannerAdCache.value = bannerAdCache.value.filter { it.key != cacheAdType }.toMutableMap()
+        bannerAdCache.update { cache -> cache - cacheAdType }
+    }
+
+    private fun createRequestSignature(
+        cacheAdType: BannerAdType,
+        bannerAdSize: BannerAdSize,
+        adSize: AdSize,
+    ): String {
+        val collapsible = MediationAd.getShared()
+            ?.getAdUnitCollapsible(cacheAdType.adUnitId)
+            ?: Collapsible.NONE
+
+        return "${bannerAdSize.remoteValue}:${adSize.width}x${adSize.height}:$collapsible"
     }
 
     private fun addOrReplace(cacheAdType: BannerAdType, bannerState: BannerState) {
-        bannerAdCache.value = buildMap {
-            val filters = bannerAdCache.value.filter { it.key != cacheAdType }
-
-            putAll(filters)
-            put(cacheAdType, bannerState)
+        bannerAdCache.update { cache ->
+            cache + (cacheAdType to bannerState)
         }
     }
 
@@ -91,22 +185,32 @@ object BannerAdPreload {
         }?.value
     }
 
+    private suspend fun awaitPreloadResult(
+        cacheAdType: BannerAdType,
+        expectedSize: AdSize,
+    ): Boolean {
+        val state = bannerAdCache
+            .map { cache -> cache[cacheAdType] }
+            .first { state ->
+                state is BannerState.Error || state is BannerState.Success && state.size == expectedSize
+            }
+
+        return state is BannerState.Success
+    }
+
     private fun getAdSize(
         context: Context,
-        type: BannerAdType,
-        paddingList: PaddingValues
+        bannerAdSize: BannerAdSize,
+        padding: PaddingValues
     ): AdSize {
-        val bannerPadding = type.bannerPadding
         val layoutDirection = context.resources.configuration.layoutDirection.toLayoutDirection()
 
-        val paddingStart = bannerPadding.calculateStartPadding(layoutDirection).value.toInt()
+        val paddingStart = padding.calculateStartPadding(layoutDirection).value.toInt()
+        val paddingListEnd = padding.calculateEndPadding(layoutDirection).value.toInt()
 
-        val paddingEnd = bannerPadding.calculateEndPadding(layoutDirection).value.toInt()
-
-        val paddingListStart = paddingList.calculateStartPadding(layoutDirection).value.toInt()
-        val paddingListEnd = paddingList.calculateEndPadding(layoutDirection).value.toInt()
-
-        return type.bannerAdSize.getAdSize(context.getWidthScreen() - (paddingStart + paddingEnd + paddingListStart + paddingListEnd))
+        return bannerAdSize.getAdSize(
+            width = context.getWidthScreen() - (paddingStart + paddingListEnd)
+        )
     }
 
     private fun Int.toLayoutDirection(): LayoutDirection {

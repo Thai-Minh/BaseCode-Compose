@@ -2,27 +2,42 @@ package com.looper.ads
 
 import android.app.Activity
 import android.app.Application
-import androidx.lifecycle.asLiveData
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.zenith.adsdk.MediationAd
 import com.zenith.template_appopenad.AppOpenAdManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-val isSupportAdState = MutableStateFlow(true)
+private val adEligibility = AdEligibilityState()
+val isSupportAdState: StateFlow<Boolean> get() = adEligibility.isEligible
 val isSupportAds get() = isSupportAdState.value
 
+private var appOpenAdObservation: Job? = null
+
+fun bindAdEligibility(
+    scope: CoroutineScope,
+    remoteAllowsAds: Flow<Boolean?>,
+    isPremium: Flow<Boolean?>,
+) {
+    adEligibility.bind(
+        scope = scope,
+        remoteAllowsAds = remoteAllowsAds,
+        isPremium = isPremium,
+    )
+}
+
 fun Application.initAd(
-    isSupportAds: Boolean,
     fetchFirstRemoteConfig: suspend () -> String?,
     fetcher: (callback: (String?) -> Unit) -> Unit,
     onNetworkInitializationSuccess: () -> Unit,
     onNetworkInitializationFailed: (error: AdsInitializationError) -> Unit
 ) {
-//    AdsManager.init(this)
-
-    setSupportAd(supportAds = isSupportAds)
+    AdsManager.init(this)
 
     initRemoteConfigFetcher(
         fetchFirstRemoteConfig = fetchFirstRemoteConfig,
@@ -52,7 +67,8 @@ private fun configAppOpenAd() {
     AppOpenAdManager.setPaidListener { currencyCode, valueMicros ->
         AdjustManager.trackAdRevenue(
             revenue = valueMicros,
-            currency = currencyCode
+            currency = currencyCode,
+            metadata = AdRevenueMetadata(adFormat = "app_open", placement = AdUnits.AppOpenAllPrice.key)
         )
     }
 
@@ -91,7 +107,7 @@ private fun Application.initRemoteConfigFetcher(
         }
     })
 
-    CoroutineScope(Dispatchers.IO).launch {
+    ProcessLifecycleOwner.get().lifecycleScope.launch(context = Dispatchers.IO) {
         val json = fetchFirstRemoteConfig()
 
         AdsManager.checkRemoteConfig(jsonString = json)
@@ -109,14 +125,18 @@ private fun Application.initRemoteConfigFetcher(
 }
 
 fun synchronizedSupportAd() {
-    isSupportAdState.asLiveData().observeForever {
-        updateSupportAppOpenAd(it)
-    }
-}
+    // Attaching the SDK can reset its flag even when eligibility has not changed.
+    updateSupportAppOpenAd(supportAds = isSupportAds)
 
-fun setSupportAd(supportAds: Boolean) {
-    isSupportAdState.value = supportAds
-//    isSupportAdState.value = false
+    if (appOpenAdObservation != null) {
+        return
+    }
+
+    appOpenAdObservation = ProcessLifecycleOwner.get().lifecycleScope.launch {
+        isSupportAdState.collect { supportAds ->
+            updateSupportAppOpenAd(supportAds = supportAds)
+        }
+    }
 }
 
 fun updateSupportAppOpenAd(supportAds: Boolean = isSupportAds) {

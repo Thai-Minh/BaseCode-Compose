@@ -1,7 +1,6 @@
 package com.looper.ads.helper.rewarded
 
 import android.content.Context
-import com.looper.ads.AdUnits
 import com.looper.ads.helper.interstitial.collectWhile
 import com.looper.ads.isSupportAds
 import com.looper.ads.safeResume
