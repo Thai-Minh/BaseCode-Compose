@@ -95,6 +95,83 @@ class IapTestBehaviorTest {
         )
     }
 
+    @Test
+    fun matchingNewPurchaseSetsRetainedSuccessWithoutGrantingPremium() {
+        val pending = identity(basePlanId = "ai-photo-editor-subs-week")
+        val state = IapTestState(billing = BillingState.Success, pending = pending)
+
+        val next = state.onPurchaseResult(
+            result = PurchaseResult(status = PurchaseStatus.Purchased, identity = pending),
+        )
+
+        assertTrue(next.isPurchaseSuccessful)
+        assertFalse(next.premium)
+        assertNull(next.pending)
+        assertTrue(next.copy(message = null, premium = true).isPurchaseSuccessful)
+    }
+
+    @Test
+    fun startupPremiumAndRestoreCannotReportNewPurchaseSuccess() {
+        val purchased = PurchaseResult(
+            status = PurchaseStatus.Purchased,
+            identity = identity(basePlanId = "ai-photo-editor-subs-week"),
+        )
+        val startup = IapTestState(billing = BillingState.Success, premium = true)
+        val restore = startup.copy(restoring = true)
+
+        assertFalse(startup.isPurchaseSuccessful)
+        assertSame(startup, startup.onPurchaseResult(result = purchased))
+        assertFalse(restore.onPurchaseResult(result = purchased).isPurchaseSuccessful)
+        assertFalse(
+            restore.copy(pending = purchased.identity)
+                .onPurchaseResult(result = purchased).isPurchaseSuccessful,
+        )
+    }
+
+    @Test
+    fun pendingCancelledAndFailedResultsDoNotReportSuccess() {
+        val pending = identity(basePlanId = "ai-photo-editor-subs-year")
+        val state = IapTestState(billing = BillingState.Success, pending = pending)
+
+        listOf(PurchaseStatus.Pending, PurchaseStatus.Cancelled, PurchaseStatus.Failed).forEach { status ->
+            val next = state.onPurchaseResult(
+                result = PurchaseResult(status = status, identity = pending),
+            )
+
+            assertFalse(next.isPurchaseSuccessful)
+            assertNull(next.pending)
+        }
+        assertFalse(
+            state.onPurchaseResult(result = PurchaseResult(status = PurchaseStatus.Cancelled))
+                .isPurchaseSuccessful,
+        )
+        assertFalse(
+            state.onPurchaseResult(result = PurchaseResult(status = PurchaseStatus.Failed))
+                .isPurchaseSuccessful,
+        )
+    }
+
+    @Test
+    fun unrelatedPurchasedEventCannotSetSuccess() {
+        val state = IapTestState(
+            billing = BillingState.Success,
+            pending = identity(basePlanId = "ai-photo-editor-subs-week"),
+        )
+        val next = state.onPurchaseResult(
+            result = PurchaseResult(
+                status = PurchaseStatus.Purchased,
+                identity = identity(basePlanId = "ai-photo-editor-subs-month"),
+            ),
+        )
+
+        assertSame(state, next)
+        assertFalse(next.isPurchaseSuccessful)
+        assertFalse(
+            state.onPurchaseResult(result = PurchaseResult(status = PurchaseStatus.Purchased))
+                .isPurchaseSuccessful,
+        )
+    }
+
     private fun identity(basePlanId: String): ProductIdentity = ProductIdentity(
         productId = "ai_photo_gen_subs",
         basePlanId = basePlanId,

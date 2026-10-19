@@ -3,6 +3,8 @@ package com.looper.base.activities
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,12 +25,28 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.looper.ads.ui.AppConsentManager
+import com.looper.base.base.ui.BaseActivity
+import com.looper.base.iap.ui.MainIAPActivity
 import com.looper.base.screen.MyApp
 import com.looper.base.ui.theme.BaseCodeComposeTheme
 
 class MainActivity : AppCompatActivity() {
 
     lateinit var navController: NavHostController
+
+    private val iapLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val purchased = result.resultCode == RESULT_OK &&
+            result.data?.getBooleanExtra(BaseActivity.IAP_SUCCESS, false) == true
+
+        // Test feedback only. The SDK's entitlement flow remains the source of truth.
+        Toast.makeText(
+            this,
+            if (purchased) "IAP test: purchase reported (not server-verified)." else "IAP test closed without a new purchase.",
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,10 +78,10 @@ class MainActivity : AppCompatActivity() {
 
                     Button(
                         onClick = {
-                            startActivity(
+                            iapLauncher.launch(
                                 Intent(
                                     this@MainActivity,
-                                    IapTestActivity::class.java
+                                    MainIAPActivity::class.java
                                 )
                             )
                         },

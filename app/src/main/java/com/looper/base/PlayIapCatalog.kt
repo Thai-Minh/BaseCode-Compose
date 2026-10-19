@@ -17,21 +17,21 @@ object PlayIapCatalog {
             entitlementId = "premium",
         ) {
             plan(
-                key = "weekly",
+                key = "WeeklyOriginal",
                 basePlanId = "ai-photo-editor-subs-week",
             ) {
                 baseOffer()
             }
 
             plan(
-                key = "monthly",
+                key = "MonthlyOriginal",
                 basePlanId = "ai-photo-editor-subs-month",
             ) {
                 baseOffer()
             }
 
             plan(
-                key = "yearly",
+                key = "YearlyOriginal",
                 basePlanId = "ai-photo-editor-subs-year",
             ) {
                 baseOffer()

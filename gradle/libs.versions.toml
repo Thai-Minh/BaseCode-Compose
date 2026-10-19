@@ -24,7 +24,7 @@ desugar_jdk_libs = "2.1.5"
 multidex = "2.0.1"
 roomVersion = "2.8.5"
 koin = "4.2.2"
-iapManager = "1.0.1"
+iapManager = "1.0.2"
 kotlinCoroutine = "1.11.0"
 
 coilVersion = "3.6.3"

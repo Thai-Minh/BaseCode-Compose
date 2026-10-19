@@ -22,6 +22,7 @@ abstract class BaseActivity<T : ViewBinding> : AppCompatActivity() {
     protected lateinit var binding: T
 
     companion object {
+        const val IAP_SUCCESS = "IAP_SUCCESS"
         private const val LANGUAGE_CODE_KEY = "language_code_key"
     }
 
@@ -86,6 +87,17 @@ abstract class BaseActivity<T : ViewBinding> : AppCompatActivity() {
     // --- Overridable hooks ---
     protected open fun isLightStatusBar(): Boolean = false
     protected open fun isLightNavigationBar(): Boolean = false
+
+    /** UI result only; callers must still use the billing SDK for entitlement. */
+    @Suppress("DEPRECATION")
+    fun finishWithIAPState(isSuccess: Boolean) {
+        setResult(
+            Activity.RESULT_OK,
+            Intent().putExtra(IAP_SUCCESS, isSuccess),
+        )
+        finish()
+        overridePendingTransition(com.looper.ads.R.anim.fade_in, com.looper.ads.R.anim.fade_out)
+    }
 
     protected open fun handleOnBackPressed() {
         finish()

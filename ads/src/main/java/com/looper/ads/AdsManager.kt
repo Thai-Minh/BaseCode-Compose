@@ -216,7 +216,7 @@ object AdsManager : DefaultLifecycleObserver {
         if (activity !is AppCompatActivity) return false
 
         return when (activity::class.java.simpleName) {
-            "MainActivity", "IapTestActivity" -> true
+            "MainActivity", "MainIAPActivity" -> true
             else -> false
         }
     }

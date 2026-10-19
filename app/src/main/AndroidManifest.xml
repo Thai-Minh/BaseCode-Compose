@@ -14,7 +14,7 @@
         android:theme="@style/Theme.BaseCodeCompose">
 
         <activity
-            android:name=".activities.IapTestActivity"
+            android:name=".iap.ui.MainIAPActivity"
             android:exported="false" />
 
         <activity
