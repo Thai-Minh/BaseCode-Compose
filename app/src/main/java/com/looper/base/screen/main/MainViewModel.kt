@@ -2,68 +2,44 @@ package com.looper.base.screen.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.looper.base.R
-import com.looper.base.audio.model.DeviceAudio
-import com.looper.base.audio.playback.AudioPlaybackConnection
-import com.looper.base.audio.repository.AudioRepository
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-
-data class MainUiState(
-    val hasAudioPermission: Boolean = false,
-    val isLoading: Boolean = false,
-    val audio: List<DeviceAudio> = emptyList(),
-    val error: Int? = null,
-)
+import com.looper.base.repository.audio_local.data.DeviceAudio
+import com.looper.base.service.AudioPlaybackConnection
+import com.looper.base.repository.audio_local.ILocalAudioWrapper
+import com.looper.local_file_manager.data.FileManagerState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 
 class MainViewModel(
-    private val repository: AudioRepository,
+    private val localAudioWrapper: ILocalAudioWrapper,
     private val playback: AudioPlaybackConnection,
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(MainUiState())
-    val uiState = mutableUiState.asStateFlow()
+    private val localAudio = localAudioWrapper.localAudio.shareIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(replayExpirationMillis = 0),
+        replay = 1,
+    )
+
+    val tabState: Flow<FileManagerState> = localAudio
+        .map { it.state }
+        .distinctUntilChanged()
+
+    val audioItems: Flow<List<DeviceAudio>> = localAudio
+        .map { it.audio }
+        .distinctUntilChanged()
+
     val playbackState = playback.state
-    private var loadJob: Job? = null
 
     init {
         playback.connect()
     }
 
-    fun onPermissionChanged(granted: Boolean) {
-        loadJob?.cancel()
-        mutableUiState.value = if (granted) {
-            mutableUiState.value.copy(hasAudioPermission = true)
-        } else {
-            MainUiState()
-        }
-        if (granted) refresh()
-    }
-
-    fun refresh() {
-        if (!mutableUiState.value.hasAudioPermission) return
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            mutableUiState.value = mutableUiState.value.copy(isLoading = true, error = null)
-            try {
-                val audio = repository.getDeviceAudio()
-                mutableUiState.value = mutableUiState.value.copy(audio = audio, isLoading = false)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: SecurityException) {
-                mutableUiState.value = MainUiState()
-            } catch (_: Exception) {
-                mutableUiState.value = mutableUiState.value.copy(
-                    isLoading = false, error = R.string.audio_load_error
-                )
-            }
-        }
-    }
+    fun refresh() = localAudioWrapper.fetch()
 
     fun reconnect() = playback.connect()
-    fun play(audio: DeviceAudio) = playback.play(mutableUiState.value.audio, audio)
+    fun play(audio: List<DeviceAudio>, selected: DeviceAudio) = playback.play(audio, selected)
     fun togglePlayPause() = playback.togglePlayPause()
     fun previous() = playback.previous()
     fun next() = playback.next()

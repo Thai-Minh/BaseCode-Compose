@@ -1,4 +1,4 @@
-package com.looper.base.audio.lockscreen
+package com.looper.base.activities.lockscreen
 
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looper.base.R
-import com.looper.base.audio.playback.AudioPlaybackConnection
+import com.looper.base.service.AudioPlaybackConnection
 import com.looper.base.ui.theme.Color171717
 import com.looper.base.utils.clickableNoRipple
 import com.looper.base.utils.coil.embeddedAudioArtworkRequest

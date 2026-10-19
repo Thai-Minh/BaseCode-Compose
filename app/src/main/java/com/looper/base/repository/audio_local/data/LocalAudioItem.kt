@@ -1,9 +1,8 @@
 package com.looper.base.repository.audio_local.data
 
 import com.looper.local_file_manager.data.FileManagerState
-import com.looper.local_file_manager.data.MediaItem
 
-data class LocalVideoItem(
+data class LocalAudioItem(
     val state: FileManagerState,
-    val audio: List<MediaItem>
+    val audio: List<DeviceAudio>,
 )

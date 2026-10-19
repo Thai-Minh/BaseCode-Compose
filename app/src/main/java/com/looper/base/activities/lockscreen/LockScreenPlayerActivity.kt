@@ -1,4 +1,4 @@
-package com.looper.base.audio.lockscreen
+package com.looper.base.activities.lockscreen
 
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
@@ -18,11 +18,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
-import com.looper.base.audio.playback.AudioPlaybackConnection
-import com.looper.base.audio.service.AudioPlaybackService
+import com.looper.base.service.AudioPlaybackConnection
+import com.looper.base.service.AudioPlaybackService
 import com.looper.base.base.storage.audioLockScreenEnabled
 import com.looper.base.ui.theme.BaseCodeComposeTheme
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class LockScreenPlayerActivity : ComponentActivity() {

@@ -1,8 +1,9 @@
-package com.looper.base.audio.playback
+package com.looper.base.service
 
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -13,8 +14,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.looper.base.R
-import com.looper.base.audio.model.DeviceAudio
-import com.looper.base.audio.service.AudioPlaybackService
+import com.looper.base.repository.audio_local.data.DeviceAudio
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -30,7 +30,7 @@ data class AudioPlaybackState(
     val error: Int? = null,
 )
 
-@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class)
 class AudioPlaybackConnection(context: Context) {
     private val context = context.applicationContext
     private val mutableState = MutableStateFlow(AudioPlaybackState())

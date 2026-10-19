@@ -169,6 +169,9 @@ class YoutubeDLVideoResolverImpl(context: Context) : YoutubeDLVideoResolver {
 
         try {
             return withContext(Dispatchers.IO) {
+                runInterruptible { MusicPageAudioResolver().resolve(sourceUrl) }?.let {
+                    return@withContext it
+                }
                 ensureYoutubeDLInitialized(appContext)
                 infoDirectory?.let {
                     check(it.mkdirs() || it.isDirectory) { "Unable to create metadata directory" }

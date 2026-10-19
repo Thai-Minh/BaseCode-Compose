@@ -1,4 +1,4 @@
-package com.looper.base.audio.playback
+package com.looper.base.service
 
 import android.net.Uri
 import androidx.media3.common.MediaItem

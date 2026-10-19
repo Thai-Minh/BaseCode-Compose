@@ -2,8 +2,6 @@ package com.looper.base.base.storage
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
-import androidx.annotation.MainThread
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -15,24 +13,17 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.looper.ads.AdsDataPreference
 import com.looper.base.MyApplication
-import com.looper.base.audio.playback.AudioPlaybackSnapshot
+import com.looper.base.service.AudioPlaybackSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.IOException
 import androidx.core.net.toUri
-import androidx.datastore.dataStore
-import kotlin.collections.remove
-import kotlin.collections.set
-import kotlin.text.set
-import kotlin.toString
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "my_app_name_data_store") // TODO: change name
 private val dataStore: DataStore<Preferences>

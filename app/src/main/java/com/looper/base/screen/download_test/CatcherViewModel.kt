@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.net.URI
+import kotlin.time.Duration.Companion.milliseconds
 
 class CatcherViewModel(
     private val youtubeDLRepository: YoutubeDLDownloadRepository,
@@ -126,7 +127,7 @@ class CatcherViewModel(
                 youtubeDLRepository.getItem(id).retryWhen { error, attempt ->
                     if (error is CancellationException) throw error
                     _uiState.update { it.copy(error = error.message ?: "Unable to observe download. Retrying...") }
-                    delay((attempt + 1).coerceAtMost(5) * 1_000)
+                    delay(((attempt + 1).coerceAtMost(5) * 1_000).milliseconds)
                     true
                 }.distinctUntilChanged().collect { task ->
                     updateDownload(id, task)
@@ -176,7 +177,7 @@ class CatcherViewModel(
         operationJob = viewModelScope.launch {
             try {
                 youtubeDLRepository.cancel(id)
-                val terminalTask = withTimeout(15_000) {
+                val terminalTask = withTimeout(15_000.milliseconds) {
                     youtubeDLRepository.getItem(id).first { task ->
                         task == null || task.status !in listOf(YoutubeDLDownloadStatus.QUEUED, YoutubeDLDownloadStatus.RUNNING)
                     }

@@ -1,6 +1,6 @@
 package com.looper.base.di
 
-import com.looper.base.audio.playback.AudioPlaybackConnection
+import com.looper.base.service.AudioPlaybackConnection
 import com.looper.base.screen.download_test.CatcherViewModel
 import com.looper.base.screen.main.MainViewModel
 import org.koin.android.ext.koin.androidContext

@@ -1,4 +1,4 @@
-package com.looper.base.audio.model
+package com.looper.base.repository.audio_local.data
 
 import android.net.Uri
 

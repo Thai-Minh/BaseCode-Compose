@@ -1,12 +1,12 @@
 package com.looper.base.repository.audio_local
 
 import androidx.activity.ComponentActivity
-import com.looper.base.repository.audio_local.data.LocalVideoItem
+import com.looper.base.repository.audio_local.data.LocalAudioItem
 import kotlinx.coroutines.flow.Flow
 
 interface ILocalAudioWrapper {
 
-    val localAudio: Flow<LocalVideoItem>
+    val localAudio: Flow<LocalAudioItem>
 
     fun fetch()
 

@@ -63,12 +63,13 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.looper.base.R
-import com.looper.base.audio.model.DeviceAudio
-import com.looper.base.audio.playback.AudioPlaybackState
-import com.looper.base.audio.widget.AudioHomeWidgetProvider
+import com.looper.base.repository.audio_local.data.DeviceAudio
+import com.looper.base.service.AudioPlaybackState
+import com.looper.base.widget.AudioHomeWidgetProvider
 import com.looper.base.base.storage.audioLockScreenEnabled
 import com.looper.base.base.storage.updateAudioLockScreenEnabled
 import com.looper.base.utils.coil.embeddedAudioArtworkRequest
+import com.looper.local_file_manager.data.FileManagerState
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -78,17 +79,34 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val widgetManager = remember(context) { AppWidgetManager.getInstance(context) }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playback by viewModel.playbackState.collectAsStateWithLifecycle()
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
     } else {
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val tabState = if (hasAudioPermission) {
+        viewModel.tabState.collectAsStateWithLifecycle(initialValue = FileManagerState.Loading).value
+    } else {
+        FileManagerState.Loading
+    }
+    val audioItems = if (hasAudioPermission) {
+        viewModel.audioItems.collectAsStateWithLifecycle(initialValue = emptyList()).value
+    } else {
+        emptyList()
+    }
     var permissionRequested by rememberSaveable { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(), viewModel::onPermissionChanged
-    )
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasAudioPermission = granted
+        if (granted) viewModel.refresh()
+    }
     val lockScreenEnabled by audioLockScreenEnabled.collectAsStateWithLifecycle(false)
     var hasOverlayPermission by rememberSaveable { mutableStateOf(Settings.canDrawOverlays(context)) }
     var showLockScreenPermission by rememberSaveable { mutableStateOf(false) }
@@ -113,9 +131,9 @@ fun MainScreen(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         hasOverlayPermission = Settings.canDrawOverlays(context)
-        viewModel.onPermissionChanged(
+        hasAudioPermission =
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-        )
+        if (hasAudioPermission) viewModel.refresh()
         viewModel.reconnect()
     }
 
@@ -155,15 +173,15 @@ fun MainScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    if (uiState.hasAudioPermission) {
-                        TextButton(onClick = viewModel::refresh, enabled = !uiState.isLoading) {
+                    if (hasAudioPermission) {
+                        TextButton(onClick = viewModel::refresh, enabled = tabState != FileManagerState.Loading) {
                             Text(stringResource(R.string.audio_refresh))
                         }
                     }
                 }
-                if (uiState.hasAudioPermission) {
+                if (hasAudioPermission) {
                     Text(
-                        pluralStringResource(R.plurals.audio_count, uiState.audio.size, uiState.audio.size),
+                        pluralStringResource(R.plurals.audio_count, audioItems.size, audioItems.size),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -252,7 +270,7 @@ fun MainScreen(
 
 
                 when {
-                    !uiState.hasAudioPermission -> {
+                    !hasAudioPermission -> {
                         Column(
                             Modifier.fillMaxSize().padding(32.dp),
                             verticalArrangement = Arrangement.Center,
@@ -289,34 +307,34 @@ fun MainScreen(
                             }
                         }
                     }
-                    uiState.isLoading -> Box(
+                    tabState == FileManagerState.Loading -> Box(
                         Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator()
                     }
-                    uiState.error != null -> Column(
+                    tabState == FileManagerState.Failed -> Column(
                         Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(stringResource(requireNotNull(uiState.error)))
+                        Text(stringResource(R.string.audio_load_error))
                         TextButton(onClick = viewModel::refresh) {
                             Text(stringResource(R.string.audio_retry))
                         }
                     }
-                    uiState.audio.isEmpty() -> Box(
+                    audioItems.isEmpty() -> Box(
                         Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                     ) {
                         Text(stringResource(R.string.audio_empty), Modifier.padding(24.dp))
                     }
                     else -> LazyColumn(Modifier.fillMaxSize()) {
-                        items(uiState.audio, key = { it.id }) { audio ->
+                        items(audioItems, key = { it.id }) { audio ->
                             AudioRow(
                                 audio, audio.id.toString() == playback.mediaId, playback.isConnected
                             ) {
                                 updateAudioLockScreenEnabled(true)
 
-                                viewModel.play(audio)
+                                viewModel.play(audioItems, audio)
                             }
                         }
                     }

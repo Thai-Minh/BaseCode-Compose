@@ -1,4 +1,4 @@
-package com.looper.base.audio.service
+package com.looper.base.service
 
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.AudioAttributes
@@ -24,9 +25,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
 import com.looper.base.R
 import com.looper.base.activities.MainActivity
-import com.looper.base.audio.lockscreen.LockScreenPlayerManager
-import com.looper.base.audio.playback.AudioPlaybackSnapshot
-import com.looper.base.audio.widget.AudioHomeWidget
+import com.looper.base.activities.lockscreen.LockScreenPlayerManager
+import com.looper.base.widget.AudioHomeWidget
 import com.looper.base.base.storage.audioPlaybackSnapshot
 import com.looper.base.base.storage.updateAudioPlaybackSnapshot
 import kotlinx.coroutines.CancellationException
@@ -37,10 +37,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import kotlin.time.Duration.Companion.milliseconds
 
-@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class)
 class AudioPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var lockScreenPlayerManager: LockScreenPlayerManager? = null

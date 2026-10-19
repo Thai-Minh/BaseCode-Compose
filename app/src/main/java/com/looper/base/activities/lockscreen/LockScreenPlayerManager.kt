@@ -1,4 +1,4 @@
-package com.looper.base.audio.lockscreen
+package com.looper.base.activities.lockscreen
 
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver

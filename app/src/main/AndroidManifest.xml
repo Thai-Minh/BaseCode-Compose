@@ -29,7 +29,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".audio.lockscreen.LockScreenPlayerActivity"
+            android:name=".activities.lockscreen.LockScreenPlayerActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
@@ -38,7 +38,7 @@
             android:theme="@style/Theme.BaseCodeCompose" />
 
         <service
-            android:name=".audio.service.AudioPlaybackService"
+            android:name=".service.AudioPlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
@@ -52,7 +52,7 @@
             android:foregroundServiceType="dataSync" />
 
         <receiver
-            android:name=".audio.widget.AudioHomeWidgetProvider"
+            android:name=".widget.AudioHomeWidgetProvider"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

@@ -1,4 +1,4 @@
-package com.looper.base.audio.widget
+package com.looper.base.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -14,16 +14,17 @@ import android.os.Looper
 import android.util.Size
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import com.looper.base.R
 import com.looper.base.activities.MainActivity
-import com.looper.base.audio.playback.AudioPlaybackSnapshot
+import com.looper.base.service.AudioPlaybackSnapshot
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class)
 object AudioHomeWidget {
     const val ACTION_PREVIOUS = "com.looper.base.audio.widget.PREVIOUS"
     const val ACTION_TOGGLE_PLAY_PAUSE = "com.looper.base.audio.widget.TOGGLE_PLAY_PAUSE"
