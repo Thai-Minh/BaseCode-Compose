@@ -14,6 +14,7 @@ fun NativeHomeAd(
     onAdFailed: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
     viewBelow: @Composable ColumnScope.() -> Unit = { },
+    isActive: Boolean = true,
 ) {
     NativeAd(
         modifier = modifier,
@@ -24,6 +25,7 @@ fun NativeHomeAd(
         onAdLoaded = onAdLoaded,
         onAdFailed = onAdFailed,
         viewAbove = viewAbove,
-        viewBelow = viewBelow
+        viewBelow = viewBelow,
+        isActive = isActive
     )
 }

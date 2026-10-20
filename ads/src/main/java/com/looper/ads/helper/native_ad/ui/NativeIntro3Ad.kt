@@ -14,6 +14,7 @@ fun NativeIntro3Ad(
     onAdFailed: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { },
     viewBelow: @Composable ColumnScope.() -> Unit = { },
+    isActive: Boolean = true,
 ) {
     NativeAd(
         modifier = modifier,
@@ -26,6 +27,7 @@ fun NativeIntro3Ad(
         isShowHeadlineAdvertiserLogo = false,
         viewAbove = viewAbove,
         viewBelow = viewBelow,
-        isSupportIconAnim = true
+        isSupportIconAnim = true,
+        isActive = isActive
     )
 }

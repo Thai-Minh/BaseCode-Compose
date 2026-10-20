@@ -46,6 +46,7 @@ import com.looper.ads.helper.native_ad.NativeAdState
 import com.looper.ads.helper.native_ad.NativeAdViewModel
 import com.looper.ads.helper.native_ad.NativeAdViewModelFactory
 import com.looper.ads.helper.native_ad.ui.NativeAdLifecycle
+import com.looper.ads.helper.native_ad.ui.NativeAdRefreshOwner
 import com.looper.ads.helper.native_ad.ui.NativeSpace
 import com.looper.ads.helper.native_ad.ui.buildDefault
 import com.looper.ads.isSupportAdState
@@ -78,6 +79,7 @@ fun LazyAdVerticalGridCheckScroll(
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    isActive: Boolean = true,
     onKey: (Any) -> Any = {},
     onSingleItemBuilder: LazyGridScope.() -> Unit = {},
     onItemBuilder: @Composable (item: Any) -> Unit = {}
@@ -136,6 +138,7 @@ fun LazyAdVerticalGridCheckScroll(
         flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
         onKey = onKey,
+        isActive = isActive,
         onSingleItemBuilder = onSingleItemBuilder,
         onItemBuilder = onItemBuilder,
         nativeType = nativeType
@@ -156,6 +159,7 @@ fun LazyAdVerticalGrid(
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    isActive: Boolean = true,
     onKey: (Any) -> Any = {},
     onSingleItemBuilder: LazyGridScope.() -> Unit = {},
     onItemBuilder: @Composable (item: Any) -> Unit = {}
@@ -184,6 +188,11 @@ fun LazyAdVerticalGrid(
     }
 
     val app = LocalContext.current.applicationContext as Application
+
+    NativeAdRefreshOwner(
+        adUnitId = nativeType.adType.config.adType.adUnitId,
+        isActive = isActive,
+    )
 
     val viewModel: NativeAdViewModel = viewModel(
         key = nativeType.adType.config.adType.name,

@@ -14,6 +14,7 @@ fun NativeIntroFullScreenAd(
     onAdFailed: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { },
     viewBelow: @Composable ColumnScope.() -> Unit = { },
+    isActive: Boolean = true,
 ) {
     NativeAd(
         modifier = modifier,
@@ -25,6 +26,7 @@ fun NativeIntroFullScreenAd(
         onAdLoaded = onAdLoaded,
         onAdFailed = onAdFailed,
         viewAbove = viewAbove,
-        viewBelow = viewBelow
+        viewBelow = viewBelow,
+        isActive = isActive
     )
 }

@@ -56,6 +56,7 @@ import com.looper.ads.helper.native_ad.NativeAdViewModel
 import com.looper.ads.helper.native_ad.NativeAdViewModelFactory
 import com.looper.ads.helper.native_ad.ui.BoxSpace
 import com.looper.ads.helper.native_ad.ui.NativeAdLifecycle
+import com.looper.ads.helper.native_ad.ui.NativeAdRefreshOwner
 import com.looper.ads.helper.native_ad.ui.NativeSpace
 import com.looper.ads.helper.native_ad.ui.buildDefault
 import com.looper.ads.isSupportAdState
@@ -151,6 +152,7 @@ fun LazyAdColumnWithCheckScroll(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    isActive: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
     val context = LocalContext.current
@@ -198,6 +200,7 @@ fun LazyAdColumnWithCheckScroll(
         horizontalAlignment = horizontalAlignment,
         flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
+        isActive = isActive,
         content = content
     )
 }
@@ -219,6 +222,7 @@ fun LazyAdColumn(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    isActive: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
     val supportAds by isSupportAdState.collectAsStateWithLifecycle()
@@ -254,6 +258,11 @@ fun LazyAdColumn(
         config.adInterval > nativeSpace -> config.adInterval
         else -> nativeSpace
     }
+
+    NativeAdRefreshOwner(
+        adUnitId = config.adType.adUnitId,
+        isActive = isActive,
+    )
 
     val viewModel: NativeAdViewModel = viewModel(
         key = config.adType.name,

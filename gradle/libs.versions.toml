@@ -33,7 +33,7 @@ navigation-compose = "2.10.2"
 compose-ui = "1.12.1"
 datastore-preferences = "1.2.1"
 
-adsdk = "1.2.9"
+adsdk = "1.2.10"
 adapter = "1.2.4"
 admob = "1.2.7"
 appopenad = "1.0.3"

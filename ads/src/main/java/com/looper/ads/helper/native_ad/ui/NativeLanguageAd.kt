@@ -15,6 +15,7 @@ fun NativeLanguage1Ad(
     adProperty: NativeAdProperty = NativeAdProperty(),
     viewAbove: @Composable ColumnScope.() -> Unit = { },
     viewBelow: @Composable ColumnScope.() -> Unit = { },
+    isActive: Boolean = true,
 ) {
     NativeAd(
         modifier = modifier,
@@ -27,7 +28,8 @@ fun NativeLanguage1Ad(
         onAdLoaded = onAdLoaded,
         onAdFailed = onAdFailed,
         viewAbove = viewAbove,
-        viewBelow = viewBelow
+        viewBelow = viewBelow,
+        isActive = isActive
     )
 }
 
@@ -41,6 +43,7 @@ fun NativeLanguage2Ad(
     onAdFailed: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { },
     viewBelow: @Composable ColumnScope.() -> Unit = { },
+    isActive: Boolean = true,
 ) {
     NativeAd(
         modifier = modifier,
@@ -53,6 +56,7 @@ fun NativeLanguage2Ad(
         onAdLoaded = onAdLoaded,
         onAdFailed = onAdFailed,
         viewAbove = viewAbove,
-        viewBelow = viewBelow
+        viewBelow = viewBelow,
+        isActive = isActive
     )
 }

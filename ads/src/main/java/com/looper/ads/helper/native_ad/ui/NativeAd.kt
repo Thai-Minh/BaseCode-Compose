@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -100,7 +102,6 @@ fun NativeAd(
     modifier: Modifier = Modifier,
     adType: NativeAdType,
     key: String? = "",
-    refreshAd: Boolean = !key.isNullOrEmpty(),
     space: NativeSpace = NativeSpace(),
     @LayoutRes shimmerLayoutId: Int,
     @LayoutRes contentLayoutId: Int,
@@ -110,9 +111,10 @@ fun NativeAd(
     onAdLoading: () -> Unit = {},
     onAdLoaded: () -> Unit = {},
     onAdFailed: () -> Unit = {},
-    onCollapsibleListener: () -> Unit = {},
     viewAbove: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
     viewBelow: @Composable ColumnScope.() -> Unit = { HorizontalBaseLine() },
+    // Retained/offscreen tabs should pass false; lifecycle remains an additional gate.
+    isActive: Boolean = true
 ) {
     val app = LocalContext.current.applicationContext as Application
 
@@ -134,18 +136,23 @@ fun NativeAd(
         return
     }
 
+    NativeAdRefreshOwner(
+        adUnitId = adType.adUnitId,
+        isActive = isActive,
+    )
+
     val viewModel: NativeAdViewModel = viewModel(
         key = adType.name,
         factory = NativeAdViewModelFactory(
             app = app,
             type = adType,
-            refreshAd = refreshAd,
+            refreshAd = !key.isNullOrEmpty()
         )
     )
 
     val nativeAd by viewModel.nativeAd.collectAsStateWithLifecycle(NativeAdState.Loading)
 
-    LaunchedEffect(viewModel, key) {
+    LaunchedEffect(key) {
         viewModel.forceRefreshAd()
     }
 
@@ -157,6 +164,7 @@ fun NativeAd(
                 delay(1000.milliseconds)
                 onAdLoaded()
             }
+
             is NativeAdState.Error -> onAdFailed()
             else -> onAdLoading()
         }
@@ -205,7 +213,8 @@ fun NativeAd(
 
                     val adUnitId = adType.adUnitId
 
-                    val enableCollapsible = MediationAd.getShared()?.isAdUnitCollapsible(adUnitId) == true
+                    val enableCollapsible =
+                        MediationAd.getShared()?.isAdUnitCollapsible(adUnitId) == true
 
                     NativeAdView(
                         modifier = customModifier,
@@ -216,8 +225,7 @@ fun NativeAd(
                         enableCollapsible = enableCollapsible,
                         goneAllAfterCollapsible = adType.goneAllAfterCollapsible,
                         isShowHeadlineAdvertiserLogo = isShowHeadlineAdvertiserLogo,
-                        isSupportIconAnim = isSupportIconAnim,
-                        onCollapsibleListener = onCollapsibleListener,
+                        isSupportIconAnim = isSupportIconAnim
                     )
                 } else {
                     ShimmerView(
@@ -228,6 +236,39 @@ fun NativeAd(
             }
 
             viewBelow()
+        }
+    }
+}
+
+@Composable
+internal fun NativeAdRefreshOwner(
+    adUnitId: String,
+    isActive: Boolean = true
+) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    // Ownership belongs to the placement, not its success-only rendered child.
+    // Keep it alive through Error so completion-driven retries can still run.
+    DisposableEffect(adUnitId, lifecycleOwner, isActive) {
+        val handle = NativeAdLoader.registerRefreshOwner(adUnitId)
+        val lifecycle = lifecycleOwner.lifecycle
+
+        fun updateActive() {
+            handle.setActive(
+                isActive && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
+            )
+        }
+
+        val observer = LifecycleEventObserver { _, _ ->
+            updateActive()
+        }
+
+        lifecycle.addObserver(observer)
+        updateActive()
+
+        onDispose {
+            lifecycle.removeObserver(observer)
+            handle.close()
         }
     }
 }
@@ -312,30 +353,6 @@ private fun ViewGroup.addViewAds(
 
     val nativeAdView = nativeAd.render(baseAdView)
 
-    val adLifecycleObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
-        override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
-            NativeAdLoader.startRefresh(adUnitId)
-        }
-
-        override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
-            NativeAdLoader.stopRefresh(adUnitId)
-        }
-    }
-
-    nativeAdView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-        override fun onViewAttachedToWindow(p0: View) {
-            NativeAdLoader.startRefresh(adUnitId)
-
-            findViewTreeLifecycleOwner()?.lifecycle?.addObserver(adLifecycleObserver)
-        }
-
-        override fun onViewDetachedFromWindow(p0: View) {
-            NativeAdLoader.stopRefresh(adUnitId)
-
-            findViewTreeLifecycleOwner()?.lifecycle?.removeObserver(adLifecycleObserver)
-        }
-    })
-
     this.removeAllViews()
     this.addView(nativeAdView)
     return nativeAdView
@@ -345,7 +362,7 @@ private fun ViewGroup.addViewAds(
 fun NativeAdLifecycle(
     viewModel: NativeAdViewModel,
 ) {
-    val lifecycle = LocalLifecycleOwner.current
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
     ComposableLifecycle(
         key = viewModel,
@@ -400,7 +417,7 @@ inline fun BoxSpace(
 
 fun UnifiedNativeAdViewBinder.Builder.buildDefault(
     enableCollapsible: Boolean = false,
-    goneAllAfterCollapsible: Boolean = true,
+    goneAllAfterCollapsible: Boolean = false,
     buttonCallToAction: Int = R.id.native_call_to_action,
     expandedLayout: Int = R.id.native_call_to_action_expand_layout, // nếu là native thường thì truyền id button vào đây
     collapsibleLayout: Int = R.id.native_call_to_action_collapsible_layout,
@@ -426,7 +443,7 @@ fun UnifiedNativeAdViewBinder.Builder.buildDefault(
         .setGoneAllAfterCollapsible(goneAllAfterCollapsible)
         .setQuickCollapsible(true)
         .setRandomClickCollapsibleTime(3000)
-        .setShowHeadlineAdvertiserLogo(enableCollapsible)
+        .setShowHeadlineAdvertiserLogo(false)
         .setCollapsibleActionChancePercent(50)
         .setOnCollapsibleListener(onCollapsibleListener)
         .build()
@@ -436,6 +453,24 @@ private fun ViewGroup.removeAllViewAndAnimation() {
     clearAnimation()
     removeAllViews()
 }
+
+//private fun startIconAnimation(view: View) {
+//    val appIcon = view.findViewById(R.id.native_icon_bound) as? View ?: return
+//
+//    val animator = ValueAnimator.ofFloat(-10f, 10f).apply {
+//        interpolator = LinearInterpolator()
+//        repeatMode = ValueAnimator.REVERSE
+//        repeatCount = ValueAnimator.INFINITE
+//        duration = 250
+//    }
+//
+//    animator.addUpdateListener { animation ->
+//        val animatedValue = animation.animatedValue as Float
+//        appIcon.rotation = animatedValue
+//    }
+//
+//    animator.start()
+//}
 
 private fun View.updateRippleColor(color: Color) {
     val gradientDrawable = background as? StateListDrawable
@@ -456,10 +491,7 @@ fun HorizontalBaseLine(
     paddingContent: PaddingValues = PaddingValues(),
     paddingLine: PaddingValues = PaddingValues(),
 ) {
-    val supportAds by isSupportAdState.collectAsStateWithLifecycle()
-    if (!supportAds) {
-        return
-    }
+    if (!isSupportAds) return
 
     Column(modifier = Modifier.padding(paddingValues = paddingContent)) {
         Spacer(

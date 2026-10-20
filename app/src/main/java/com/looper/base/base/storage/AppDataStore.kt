@@ -17,6 +17,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -36,13 +39,15 @@ private fun dataStoreWrite(block: suspend () -> Unit) {
     }
 }
 
-private val data = dataStore.data.catch { exception ->
+private val data: Flow<Preferences> = flow {
+    emitAll(dataStore.data)
+}.catch { exception ->
     if (exception is IOException) {
         emit(emptyPreferences())
     } else {
         throw exception
     }
-}
+}.flowOn(Dispatchers.IO)
 
 /**
  * ----------------------------------------------------------------- SAVE BELOW ------------------------------------------------------------------------------
