@@ -26,6 +26,7 @@ roomVersion = "2.8.5"
 koin = "4.2.2"
 iapManager = "1.0.2"
 kotlinCoroutine = "1.11.0"
+ytdlp = "0.1.1"
 
 coilVersion = "3.6.3"
 
@@ -204,6 +205,12 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 #download-manager-core = { group = "com.looper.zenith.Thai-Minh", name = "manager-core", version.ref = "managerCore" }
 #downloader-core = { group = "com.looper.zenith.Thai-Minh", name = "ffmpeg-core", version.ref = "downloaderCore" }
 #ffmpeg-core = { group = "com.looper.zenith.Thai-Minh", name = "downloader", version.ref = "ffmpegCore" }
+
+# ytdlp
+ytdlp-core = { group = "io.ytdlp", name = "ytdlp-core", version.ref = "ytdlp" }
+ytdlp-js = { group = "io.ytdlp", name = "ytdlp-js", version.ref = "ytdlp" }
+ytdlp-ffmpeg = { group = "io.ytdlp", name = "ytdlp-ffmpeg", version.ref = "ytdlp" }
+ytdlp-aria2c = { group = "io.ytdlp", name = "ytdlp-aria2c", version.ref = "ytdlp" }
 
 #youtube-dl android
 #youtubedl-android = { module = "io.github.junkfood02.youtubedl-android:library", version.ref = "youtubedlAndroid" }

@@ -48,9 +48,19 @@ dependencyResolutionManagement {
                 this.password = password
             }
         }
+
+        val ytdlpUser = providers.gradleProperty("ytdlp_username").get()
+        val ytdlpToken = providers.gradleProperty("ytdlp_token").get()
+        maven {
+            url = URI.create("https://maven.pkg.github.com/MizumiKawai/ytdlp-wrapper")
+            credentials {
+                this.username = ytdlpUser
+                this.password = ytdlpToken
+            }
+        }
     }
 }
 
-rootProject.name = "Base Code Compose"
+rootProject.name = "Audio-Play-Background-G1"
 include(":app")
 include(":ads")

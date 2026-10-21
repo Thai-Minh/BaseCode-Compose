@@ -82,6 +82,13 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/*.zip.so"
+        }
+    }
+
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
@@ -172,6 +179,12 @@ dependencies {
 
     // Shimmer
     implementation(libs.shimmer)
+
+    // yt-dlp
+    implementation(libs.ytdlp.core)
+    implementation(libs.ytdlp.js)
+    implementation(libs.ytdlp.ffmpeg)
+    implementation(libs.ytdlp.aria2c)
 }
 
 configurations.all {
