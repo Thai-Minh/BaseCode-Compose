@@ -102,6 +102,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg(k = "room.schemaLocation", v = "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.appcompat)
