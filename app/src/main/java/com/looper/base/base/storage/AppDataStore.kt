@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.looper.ads.AdsDataPreference
 import com.looper.base.MyApplication
+import com.looper.base.equalizer.model.EqConstants
+import com.looper.base.equalizer.model.EqSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,6 +78,48 @@ val firstOpen: Flow<Boolean> = data.map { preferences ->
 fun updateFirstOpen(value: Boolean) = dataStoreWrite {
     dataStore.edit { settings ->
         settings[FIRST_OPEN] = value
+    }
+}
+
+val EQ_ENABLED_KEY = booleanPreferencesKey("EQ_ENABLED")
+val EQ_PRESET_ID_KEY = stringPreferencesKey("EQ_PRESET_ID")
+val EQ_BAND_LEVELS_KEY = stringPreferencesKey("EQ_BAND_LEVELS")
+val EQ_BASS_BOOST_KEY = intPreferencesKey("EQ_BASS_BOOST")
+val EQ_VIRTUALIZER_KEY = intPreferencesKey("EQ_VIRTUALIZER")
+val EQ_LOUDNESS_KEY = intPreferencesKey("EQ_LOUDNESS")
+
+const val EQ_PRESET_CUSTOM = "__custom__"
+
+val eqSettings: Flow<EqSettings> = data.map { preferences ->
+    val presetRaw = preferences[EQ_PRESET_ID_KEY]
+    EqSettings(
+        enabled = preferences[EQ_ENABLED_KEY] ?: false,
+        presetId = when (presetRaw) {
+            null -> EqConstants.PRESET_ID_FLAT
+            EQ_PRESET_CUSTOM -> null
+            else -> presetRaw
+        },
+        bandLevelsMb = preferences[EQ_BAND_LEVELS_KEY]
+            ?.split(',')
+            ?.mapNotNull {
+                it.trim().toIntOrNull()
+            }
+            ?: emptyList(),
+        bassBoost = preferences[EQ_BASS_BOOST_KEY] ?: 0,
+        virtualizer = preferences[EQ_VIRTUALIZER_KEY] ?: 0,
+        loudnessGainMb = preferences[EQ_LOUDNESS_KEY] ?: 0,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateEqSettings(value: EqSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[EQ_ENABLED_KEY] = normalized.enabled
+        settings[EQ_PRESET_ID_KEY] = normalized.presetId ?: EQ_PRESET_CUSTOM
+        settings[EQ_BAND_LEVELS_KEY] = normalized.bandLevelsMb.joinToString(separator = ",")
+        settings[EQ_BASS_BOOST_KEY] = normalized.bassBoost
+        settings[EQ_VIRTUALIZER_KEY] = normalized.virtualizer
+        settings[EQ_LOUDNESS_KEY] = normalized.loudnessGainMb
     }
 }
 

@@ -1,15 +1,16 @@
 package com.looper.base.activities
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -17,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -25,8 +27,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.looper.ads.ui.AppConsentManager
+import com.looper.base.R
+import com.looper.base.base.navigation.EqualizerInput
+import com.looper.base.base.navigation.navigateSingle
 import com.looper.base.base.ui.BaseActivity
-import com.looper.base.iap.ui.MainIAPActivity
 import com.looper.base.screen.MyApp
 import com.looper.base.ui.theme.BaseCodeComposeTheme
 
@@ -38,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         val purchased = result.resultCode == RESULT_OK &&
-            result.data?.getBooleanExtra(BaseActivity.IAP_SUCCESS, false) == true
+                result.data?.getBooleanExtra(BaseActivity.IAP_SUCCESS, false) == true
 
         // Test feedback only. The SDK's entitlement flow remains the source of truth.
         Toast.makeText(
@@ -76,21 +80,12 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     MyApp(navController = navController)
 
-                    Button(
-                        onClick = {
-                            iapLauncher.launch(
-                                Intent(
-                                    this@MainActivity,
-                                    MainIAPActivity::class.java
-                                )
-                            )
-                        },
+                    Column(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(16.dp),
-                    ) {
-                        Text("IAP test")
-                    }
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) { }
                 }
             }
         }

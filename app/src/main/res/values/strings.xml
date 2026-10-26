@@ -13,4 +13,28 @@
     <string name="oops_connection_lost">Oops! Connection lost</string>
     <string name="this_app_requires_an_internet_connection_please_connect_to_wi_fi_or_mobile_data">This app requires an internet connection. Please connect to Wi-Fi or mobile data.</string>
 
+    <string name="equalizer">Equalizer</string>
+    <string name="eq_presets">Presets</string>
+    <string name="eq_custom">Custom</string>
+    <string name="eq_bass_boost">Bass boost</string>
+    <string name="eq_virtualizer">Virtualizer</string>
+    <string name="eq_loudness">Volume boost</string>
+    <string name="eq_reset">Reset</string>
+    <string name="eq_save_preset">Save preset</string>
+    <string name="eq_preset_name">Preset name</string>
+    <string name="eq_rename">Rename</string>
+    <string name="eq_delete">Delete</string>
+    <string name="eq_cancel">Cancel</string>
+    <string name="eq_save">Save</string>
+    <string name="eq_manage_preset">Manage preset</string>
+    <string name="eq_preset_saved">Preset saved</string>
+    <string name="eq_preset_deleted">Preset deleted</string>
+    <string name="eq_preset_name_empty">Please enter a preset name</string>
+    <string name="eq_preset_name_exists">A preset with this name already exists</string>
+    <string name="eq_not_supported_title">Equalizer not available</string>
+    <string name="eq_not_supported_message">This device does not expose an audio equalizer to apps.</string>
+    <string name="eq_open_system">Open system equalizer</string>
+    <string name="eq_waiting_player">Connecting to the player…</string>
+    <string name="eq_test">EQ test</string>
+
 </resources>

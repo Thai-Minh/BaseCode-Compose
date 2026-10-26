@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.looper.base.database.dao.DownloadJobDao
 import com.looper.base.database.dao.DownloadedFileDao
+import com.looper.base.database.dao.EqPresetDao
 import com.looper.base.database.dao.LyricsDao
 import com.looper.base.database.dao.MediaItemDao
 import com.looper.base.database.dao.PlatformDao
@@ -15,6 +16,7 @@ import com.looper.base.database.dao.PlayHistoryDao
 import com.looper.base.database.dao.PlaylistDao
 import com.looper.base.database.data.DownloadJobEntity
 import com.looper.base.database.data.DownloadedFileEntity
+import com.looper.base.database.data.EqPresetEntity
 import com.looper.base.database.data.LyricsEntity
 import com.looper.base.database.data.MediaItemEntity
 import com.looper.base.database.data.PlatformEntity
@@ -34,6 +36,7 @@ private const val DATABASE_NAME = "audio_player.db"
         DownloadJobEntity::class,
         PlayHistoryEntity::class,
         LyricsEntity::class,
+        EqPresetEntity::class,
     ],
     version = 1,
     exportSchema = true,
@@ -53,6 +56,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playHistoryDao(): PlayHistoryDao
 
     abstract fun lyricsDao(): LyricsDao
+
+    abstract fun eqPresetDao(): EqPresetDao
 }
 
 object DatabaseFactory {

@@ -21,7 +21,7 @@ android {
     defaultConfig {
         // applicationId = "com.looper.base"
         applicationId = "com.cubstudio.aiphotoeditor.photoenhance"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -125,6 +125,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -189,6 +190,9 @@ dependencies {
     implementation(libs.ytdlp.js)
     implementation(libs.ytdlp.ffmpeg)
     implementation(libs.ytdlp.aria2c)
+
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
 }
 
 configurations.all {
