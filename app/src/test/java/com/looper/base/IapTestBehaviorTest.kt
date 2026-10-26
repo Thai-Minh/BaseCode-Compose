@@ -6,6 +6,7 @@ package com.looper.base
 
 import com.android.billingclient.api.BillingClient
 import com.looper.base.activities.IapTestState
+import com.looper.base.iap.data.PlayIapCatalog
 import com.looper.iap.catalog.IapProductConfig
 import com.looper.iap.model.BillingState
 import com.looper.iap.model.ProductIdentity

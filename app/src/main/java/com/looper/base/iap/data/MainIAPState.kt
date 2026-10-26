@@ -1,4 +1,4 @@
-package com.looper.base.iap.ui.data
+package com.looper.base.iap.data
 
 import com.looper.iap.model.BillingState
 import com.looper.iap.model.ProductDetailItem

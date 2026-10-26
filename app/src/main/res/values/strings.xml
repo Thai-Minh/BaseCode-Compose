@@ -13,4 +13,56 @@
     <string name="oops_connection_lost">Oops! Connection lost</string>
     <string name="this_app_requires_an_internet_connection_please_connect_to_wi_fi_or_mobile_data">This app requires an internet connection. Please connect to Wi-Fi or mobile data.</string>
 
+    <!--Language-->
+    <string name="language">Language</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_espanol" translatable="false">Español</string>
+    <string name="language_vn" translatable="false">Tiếng Việt</string>
+    <string name="language_france" translatable="false">Français</string>
+    <string name="language_india" translatable="false">हिन्दी</string>
+    <string name="language_portugal" translatable="false">Português</string>
+    <string name="language_deutsch" translatable="false">Deutsch</string>
+    <string name="language_uae" translatable="false">عربي</string>
+    <string name="language_africa" translatable="false">Afrikaans</string>
+    <string name="language_china" translatable="false">Chinese</string>
+    <string name="language_italia" translatable="false">Italiano</string>
+    <string name="language_korea" translatable="false">이스라엘</string>
+    <string name="language_poland" translatable="false">Polski</string>
+    <string name="language_japan" translatable="false">日本語</string>
+    <string name="language_malaysia" translatable="false">English</string>
+    <string name="language_canada" translatable="false">Canada</string>
+    <string name="language_indo" translatable="false">Bahasa Indonesia</string>
+    <string name="language_thai" translatable="false">ไทย</string>
+    <string name="language_turkey" translatable="false">Türkçe</string>
+    <string name="language_russia" translatable="false">Русский</string>
+    <string name="language_uzbe" translatable="false">Oʻzbek</string>
+    <string name="language_india_2" translatable="false">اُردُو</string>
+
+    <string name="nation_english" translatable="false">English</string>
+    <string name="nation_espanol" translatable="false">Spanish</string>
+    <string name="nation_vn" translatable="false">Vietnamese</string>
+    <string name="nation_france" translatable="false">French</string>
+    <string name="nation_india" translatable="false">Hindi</string>
+    <string name="nation_portugal" translatable="false">Portuguese</string>
+    <string name="nation_deutsch" translatable="false">German</string>
+    <string name="nation_uae" translatable="false">Arabic</string>
+    <string name="nation_africa" translatable="false">Afrikaans</string>
+    <string name="nation_china" translatable="false">中文 (Chinese)</string>
+    <string name="nation_italia" translatable="false">Italian</string>
+    <string name="nation_korea" translatable="false">Korean</string>
+    <string name="nation_poland" translatable="false">Polish</string>
+    <string name="nation_japan" translatable="false">Japanese</string>
+    <string name="nation_malaysia" translatable="false">English (United States)</string>
+    <string name="nation_canada" translatable="false">English (Canada)</string>
+    <string name="nation_indo" translatable="false">Indonesian</string>
+    <string name="nation_thai" translatable="false">Thai</string>
+    <string name="nation_turkey" translatable="false">Turkish</string>
+    <string name="nation_russia" translatable="false">Russian</string>
+    <string name="nation_uzbe" translatable="false">Uzbek</string>
+    <string name="nation_india_2" translatable="false">اُردُو</string>
+
+    <string name="all_languages">All Languages</string>
+    <string name="system_default_language">Device language</string>
+    <string name="system_default_language_header">System Default Language</string>
+
 </resources>

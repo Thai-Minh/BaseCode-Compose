@@ -2,7 +2,7 @@
 *Created by: ThaiND
 */
 
-package com.looper.base
+package com.looper.base.iap.data
 
 import com.looper.iap.catalog.IapCatalog
 
