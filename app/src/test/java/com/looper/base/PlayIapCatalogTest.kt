@@ -1,5 +1,6 @@
 package com.looper.base
 
+import com.looper.base.iap.data.PlayIapCatalog
 import com.looper.iap.catalog.IapProductConfig
 import com.looper.iap.model.OfferKind
 import org.junit.Assert.assertEquals

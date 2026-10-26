@@ -14,6 +14,7 @@ import com.looper.base.di.networkModule
 import com.looper.base.di.notificationModule
 import com.looper.base.di.repositoryModule
 import com.looper.base.di.viewModelModule
+import com.looper.base.iap.data.PlayIapCatalog
 import com.looper.iap.BillingManagerImpl
 import com.looper.iap.OrigoIapSdk
 import com.looper.iap.model.IapConfig

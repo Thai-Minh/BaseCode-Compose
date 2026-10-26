@@ -4,7 +4,7 @@
 
 package com.looper.base.iap.ui
 
-import com.looper.base.iap.ui.data.MainIAPState
+import com.looper.base.iap.data.MainIAPState
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

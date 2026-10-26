@@ -1,6 +1,6 @@
 package com.looper.base.iap.ui
 
-import com.looper.base.iap.ui.data.MainIAPState
+import com.looper.base.iap.data.MainIAPState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looper.iap.BillingManagerImpl
