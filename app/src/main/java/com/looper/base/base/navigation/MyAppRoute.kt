@@ -19,3 +19,6 @@ object MainInput
 
 @Serializable
 object EqualizerInput
+
+@Serializable
+object SleepTimerInput

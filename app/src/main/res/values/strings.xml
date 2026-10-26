@@ -37,4 +37,19 @@
     <string name="eq_waiting_player">Connecting to the player…</string>
     <string name="eq_test">EQ test</string>
 
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_pick_duration">Playback will pause automatically after:</string>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <string name="sleep_timer_end_of_track">End of track</string>
+    <string name="sleep_timer_remaining">remaining</string>
+    <string name="sleep_timer_ends_after_track">Playback will pause when the current track ends</string>
+    <string name="sleep_timer_extend_5">+5 min</string>
+    <string name="sleep_timer_turn_off">Turn off</string>
+    <string name="sleep_timer_started">Sleep timer set</string>
+    <string name="sleep_timer_cancelled">Sleep timer turned off</string>
+    <string name="sleep_timer_not_connected">Connecting to the player…</string>
+
 </resources>

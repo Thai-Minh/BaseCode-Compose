@@ -20,13 +20,13 @@ import org.json.JSONObject
 object FRRemoteConfig {
     private var job: Job? = null
 
-    private val _fetchShowAdsWhenReview = MutableStateFlow<Boolean?>(null)
-    val fetchShowAdsWhenReview: StateFlow<Boolean?> = _fetchShowAdsWhenReview
+    val fetchShowAdsWhenReview: StateFlow<Boolean?>
+        field = MutableStateFlow(value = null)
 
-    private val fetchAll = MutableSharedFlow<Boolean>(1)
+    private val fetchAll = MutableSharedFlow<Boolean>(replay = 1)
     private val fetchAds = MutableSharedFlow<Boolean>(replay = 1)
 
-    val listenerFinal = fetchAll.zip(fetchAds) { all, ads ->
+    val listenerFinal = fetchAll.zip(other = fetchAds) { all, ads ->
         true
     }
 
@@ -49,11 +49,11 @@ object FRRemoteConfig {
                     fetchIAAdsConfig(remoteConfig)
                 }
 
-                fetchAll.tryEmit(fetchSuccess)
+                fetchAll.tryEmit(value = fetchSuccess)
             } catch (e: Exception) {
 
-                _fetchShowAdsWhenReview.value = true
-                fetchAll.tryEmit(false)
+                fetchShowAdsWhenReview.value = true
+                fetchAll.tryEmit(value = false)
             }
         }
     }
@@ -65,7 +65,7 @@ object FRRemoteConfig {
     suspend fun fetchAdsRemoteConfig(key: String): String? =
         suspendCancellableCoroutine { continuation ->
             fetchAdsRemoteConfig(key = key) { jsonConfig ->
-                continuation.safeResume(jsonConfig)
+                continuation.safeResume(value = jsonConfig)
             }
         }
 
@@ -166,9 +166,9 @@ object FRRemoteConfig {
         if (versionCode == BuildConfig.VERSION_CODE) {
             val showAdWhenReview = jsonObject.optBoolean("isShowAds", false)
 
-            _fetchShowAdsWhenReview.value = showAdWhenReview
+            fetchShowAdsWhenReview.value = showAdWhenReview
         } else {
-            _fetchShowAdsWhenReview.value = true
+            fetchShowAdsWhenReview.value = true
         }
     }
 

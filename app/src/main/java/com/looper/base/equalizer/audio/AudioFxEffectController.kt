@@ -12,7 +12,6 @@ import com.looper.base.equalizer.model.EqConstants
 import com.looper.base.equalizer.model.EqSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class AudioFxEffectController : AudioEffectController {
 
@@ -21,12 +20,11 @@ class AudioFxEffectController : AudioEffectController {
         const val PRIORITY = 0
     }
 
-    private val _capabilities =
-        MutableStateFlow(EqCapabilities.unattached(supported = isEqualizerAvailable()))
-    override val capabilities: StateFlow<EqCapabilities> = _capabilities.asStateFlow()
+    override val capabilities: StateFlow<EqCapabilities>
+        field = MutableStateFlow(EqCapabilities.unattached(supported = isEqualizerAvailable()))
 
-    private val _audioSessionId = MutableStateFlow(EqConstants.AUDIO_SESSION_UNSET)
-    override val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
+    override val audioSessionId: StateFlow<Int>
+        field = MutableStateFlow(EqConstants.AUDIO_SESSION_UNSET)
 
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
@@ -44,18 +42,18 @@ class AudioFxEffectController : AudioEffectController {
         if (audioSessionId == EqConstants.AUDIO_SESSION_UNSET) {
             return
         }
-        if (audioSessionId == _audioSessionId.value && equalizer != null) {
+        if (audioSessionId == this.audioSessionId.value && equalizer != null) {
             return
         }
 
         releaseEffects()
-        _audioSessionId.value = audioSessionId
+        this.audioSessionId.value = audioSessionId
 
         val eq = try {
             Equalizer(PRIORITY, audioSessionId)
         } catch (t: Throwable) {
             Log.w(TAG, "Equalizer unavailable on session $audioSessionId", t)
-            _capabilities.value = EqCapabilities.unattached(supported = false)
+            capabilities.value = EqCapabilities.unattached(supported = false)
             return
         }
         equalizer = eq
@@ -69,7 +67,7 @@ class AudioFxEffectController : AudioEffectController {
             val range = eq.bandLevelRange
             deviceMinMb = range[0].toInt()
             deviceMaxMb = range[1].toInt()
-            _capabilities.value = EqCapabilities(
+            capabilities.value = EqCapabilities(
                 supported = true,
                 attached = true,
                 bandCount = bandCount,
@@ -80,7 +78,7 @@ class AudioFxEffectController : AudioEffectController {
         } catch (t: Throwable) {
             Log.w(TAG, "Failed to read equalizer capabilities, assuming standard layout", t)
             deviceFreqsHz = EqConstants.STANDARD_FREQS_HZ
-            _capabilities.value = EqCapabilities.unattached(supported = true).copy(attached = true)
+            capabilities.value = EqCapabilities.unattached(supported = true).copy(attached = true)
         }
 
         bassBoost = runCatching {
@@ -158,8 +156,8 @@ class AudioFxEffectController : AudioEffectController {
     @Synchronized
     override fun detach() {
         releaseEffects()
-        _audioSessionId.value = EqConstants.AUDIO_SESSION_UNSET
-        _capabilities.value = EqCapabilities.unattached(supported = _capabilities.value.supported)
+        audioSessionId.value = EqConstants.AUDIO_SESSION_UNSET
+        capabilities.value = EqCapabilities.unattached(supported = capabilities.value.supported)
     }
 
     private fun releaseEffects() {

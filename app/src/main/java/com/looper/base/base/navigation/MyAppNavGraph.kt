@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.looper.base.base.navigation.child.equalizerNavGraph
 import com.looper.base.base.navigation.child.languageNavGraph
+import com.looper.base.base.navigation.child.sleepTimerNavGraph
 import com.looper.base.base.navigation.child.splashNavGraph
 
 @Composable
@@ -24,6 +25,8 @@ fun MyAppNavGraph(
             languageNavGraph(navController = navController)
 
             equalizerNavGraph(navController = navController)
+
+            sleepTimerNavGraph(navController = navController)
         }
     )
 }
@@ -37,22 +40,32 @@ fun AppNavHost(
         startDestination = startDestination,
         enterTransition = {
             slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(350)
+                towards = AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(
+                    durationMillis = 350
+                )
             )
         },
         exitTransition = {
             slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(350)
+                towards = AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(
+                    durationMillis = 350
+                )
             )
         },
         popEnterTransition = {
             slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(350)
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(
+                    durationMillis = 350
+                )
             )
         },
         popExitTransition = {
             slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(350)
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(
+                    durationMillis = 350
+                )
             )
         },
         builder = builder

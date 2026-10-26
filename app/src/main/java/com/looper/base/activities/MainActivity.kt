@@ -1,6 +1,12 @@
 package com.looper.base.activities
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.res.Configuration
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
@@ -13,30 +19,47 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.looper.ads.ui.AppConsentManager
-import com.looper.base.R
-import com.looper.base.base.navigation.EqualizerInput
-import com.looper.base.base.navigation.navigateSingle
 import com.looper.base.base.ui.BaseActivity
+import com.looper.base.player.PlayerConnection
+import com.looper.base.player.PlayerState
+import com.looper.base.player.pip.PipManager
 import com.looper.base.screen.MyApp
 import com.looper.base.ui.theme.BaseCodeComposeTheme
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 class MainActivity : AppCompatActivity() {
 
     lateinit var navController: NavHostController
+
+    private val playerConnection: PlayerConnection by inject()
+    private val pipManager: PipManager by inject()
+
+    private var latestPlayerState = PlayerState()
+
+    private val pipActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == PipManager.ACTION_PLAY_PAUSE) {
+                playerConnection.togglePlayPause()
+            }
+        }
+    }
 
     private val iapLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -70,6 +93,8 @@ class MainActivity : AppCompatActivity() {
 
         AppConsentManager.gatherConsent(this)
 
+        setupPictureInPicture()
+
         setContent {
             val controller = rememberNavController()
             this.navController = controller
@@ -83,12 +108,73 @@ class MainActivity : AppCompatActivity() {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(16.dp),
+                            .padding(all = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) { }
                 }
             }
         }
+    }
+
+
+    private fun setupPictureInPicture() {
+        if (!pipManager.isSupported(context = this)) {
+            return
+        }
+
+        ContextCompat.registerReceiver(
+            this,
+            pipActionReceiver,
+            IntentFilter(PipManager.ACTION_PLAY_PAUSE),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(state = Lifecycle.State.STARTED) {
+                playerConnection.state.collect { state ->
+                    latestPlayerState = state
+                    setPictureInPictureParams(
+                        pipManager.buildParams(
+                            context = this@MainActivity,
+                            state = state
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
+        if (!pipManager.isSupported(context = this) || !pipManager.shouldEnter(latestPlayerState)) {
+            return
+        }
+        runCatching {
+            enterPictureInPictureMode(
+                pipManager.buildParams(
+                    context = this,
+                    state = latestPlayerState
+                )
+            )
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pipManager.onPipModeChanged(inPip = isInPictureInPictureMode)
+    }
+
+    override fun onDestroy() {
+        if (pipManager.isSupported(context = this)) {
+            runCatching {
+                unregisterReceiver(pipActionReceiver)
+            }
+        }
+        super.onDestroy()
     }
 }
 

@@ -1,6 +1,5 @@
 package com.looper.base.equalizer.ui
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
@@ -40,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,15 +56,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
 import com.looper.base.R
 import com.looper.base.equalizer.model.EqConstants
 import com.looper.base.equalizer.model.EqPreset
 import com.looper.base.equalizer.ui.data.EqEffect
 import com.looper.base.equalizer.ui.data.EqIntent
 import com.looper.base.equalizer.ui.data.EqState
-import com.looper.base.player.PlaybackService
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.roundToInt
 
@@ -80,8 +75,6 @@ fun EqualizerScreen(
     val snackbarHostState = remember {
         SnackbarHostState()
     }
-
-    ConnectPlaybackService()
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -123,107 +116,141 @@ private fun EqualizerContent(
             SnackbarHost(hostState = snackbarHostState)
         },
     ) { padding ->
-        Column(
+        EqualizerPanel(
+            state = state,
+            onIntent = onIntent,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(state = rememberScrollState())
                 .padding(bottom = 24.dp),
-        ) {
-            if (!state.supported) {
-                UnsupportedCard(audioSessionId = state.audioSessionId)
-                return@Column
-            }
+        )
+    }
+}
 
-            if (!state.attached) {
-                Text(
-                    text = stringResource(id = R.string.eq_waiting_player),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-
-            PresetRow(
-                presets = state.presets,
-                selectedId = state.settings.presetId,
-                isCustom = state.isCustom,
-                onSelect = {
-                    onIntent(EqIntent.SelectPreset(preset = it))
-                },
-                onManage = {
-                    onIntent(EqIntent.OpenManagePreset(preset = it))
-                },
-            )
-
-            BandSliders(
-                freqsHz = state.bandFreqsHz,
-                levelsMb = state.settings.bandLevelsMb,
-                minLevelMb = state.minLevelMb,
-                maxLevelMb = state.maxLevelMb,
-                enabled = state.settings.enabled,
-                onLevelChange = { index, level ->
-                    onIntent(
-                        EqIntent.ChangeBand(
-                            index = index,
-                            levelMb = level
-                        )
-                    )
-                },
-            )
-
-            EffectSlider(
-                label = stringResource(id = R.string.eq_bass_boost),
-                value = state.settings.bassBoost,
-                max = EqConstants.MAX_STRENGTH,
-                enabled = state.settings.enabled,
-                onValueChange = {
-                    onIntent(EqIntent.ChangeBassBoost(strength = it))
-                },
-            )
-
-            EffectSlider(
-                label = stringResource(id = R.string.eq_virtualizer),
-                value = state.settings.virtualizer,
-                max = EqConstants.MAX_STRENGTH,
-                enabled = state.settings.enabled,
-                onValueChange = {
-                    onIntent(EqIntent.ChangeVirtualizer(strength = it))
-                },
-            )
-
-            EffectSlider(
-                label = stringResource(id = R.string.eq_loudness),
-                value = state.settings.loudnessGainMb,
-                max = EqConstants.MAX_LOUDNESS_MB,
-                enabled = state.settings.enabled,
-                onValueChange = {
-                    onIntent(EqIntent.ChangeLoudness(gainMb = it))
-                },
-            )
-
+@Composable
+internal fun EqualizerPanel(
+    state: EqState,
+    onIntent: (EqIntent) -> Unit,
+    modifier: Modifier = Modifier,
+    showEnableSwitch: Boolean = false,
+) {
+    Column(modifier = modifier) {
+        if (showEnableSwitch) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(space = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(
-                    onClick = {
-                        onIntent(EqIntent.Reset)
-                    },
+                Text(
+                    text = stringResource(id = R.string.equalizer),
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(weight = 1f),
-                ) {
-                    Text(text = stringResource(id = R.string.eq_reset))
-                }
-                Button(
-                    onClick = {
-                        onIntent(EqIntent.OpenSaveDialog)
+                )
+                Switch(
+                    checked = state.settings.enabled,
+                    enabled = state.supported,
+                    onCheckedChange = {
+                        onIntent(EqIntent.ToggleEnabled(enabled = it))
                     },
-                    modifier = Modifier.weight(weight = 1f),
-                ) {
-                    Text(text = stringResource(id = R.string.eq_save_preset))
-                }
+                )
+            }
+        }
+
+        if (!state.supported) {
+            UnsupportedCard(audioSessionId = state.audioSessionId)
+            return@Column
+        }
+
+        if (!state.attached) {
+            Text(
+                text = stringResource(id = R.string.eq_waiting_player),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+
+        PresetRow(
+            presets = state.presets,
+            selectedId = state.settings.presetId,
+            isCustom = state.isCustom,
+            onSelect = {
+                onIntent(EqIntent.SelectPreset(preset = it))
+            },
+            onManage = {
+                onIntent(EqIntent.OpenManagePreset(preset = it))
+            },
+        )
+
+        BandSliders(
+            freqsHz = state.bandFreqsHz,
+            levelsMb = state.settings.bandLevelsMb,
+            minLevelMb = state.minLevelMb,
+            maxLevelMb = state.maxLevelMb,
+            enabled = state.settings.enabled,
+            onLevelChange = { index, level ->
+                onIntent(
+                    EqIntent.ChangeBand(
+                        index = index,
+                        levelMb = level
+                    )
+                )
+            },
+        )
+
+        EffectSlider(
+            label = stringResource(id = R.string.eq_bass_boost),
+            value = state.settings.bassBoost,
+            max = EqConstants.MAX_STRENGTH,
+            enabled = state.settings.enabled,
+            onValueChange = {
+                onIntent(EqIntent.ChangeBassBoost(strength = it))
+            },
+        )
+
+        EffectSlider(
+            label = stringResource(id = R.string.eq_virtualizer),
+            value = state.settings.virtualizer,
+            max = EqConstants.MAX_STRENGTH,
+            enabled = state.settings.enabled,
+            onValueChange = {
+                onIntent(EqIntent.ChangeVirtualizer(strength = it))
+            },
+        )
+
+        EffectSlider(
+            label = stringResource(id = R.string.eq_loudness),
+            value = state.settings.loudnessGainMb,
+            max = EqConstants.MAX_LOUDNESS_MB,
+            enabled = state.settings.enabled,
+            onValueChange = {
+                onIntent(EqIntent.ChangeLoudness(gainMb = it))
+            },
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(space = 12.dp),
+        ) {
+            OutlinedButton(
+                onClick = {
+                    onIntent(EqIntent.Reset)
+                },
+                modifier = Modifier.weight(weight = 1f),
+            ) {
+                Text(text = stringResource(id = R.string.eq_reset))
+            }
+            Button(
+                onClick = {
+                    onIntent(EqIntent.OpenSaveDialog)
+                },
+                modifier = Modifier.weight(weight = 1f),
+            ) {
+                Text(text = stringResource(id = R.string.eq_save_preset))
             }
         }
     }
@@ -586,18 +613,6 @@ private fun ManagePresetDialog(
             }
         },
     )
-}
-
-@Composable
-private fun ConnectPlaybackService() {
-    val context = LocalContext.current
-    DisposableEffect(Unit) {
-        val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val future = MediaController.Builder(context, token).buildAsync()
-        onDispose {
-            MediaController.releaseFuture(future)
-        }
-    }
 }
 
 private fun formatDb(levelMb: Int): String {
