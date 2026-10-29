@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         // applicationId = "com.looper.base"
-        applicationId = "com.cubstudio.aiphotoeditor.photoenhance"
+        applicationId = "com.ezla.cleaner.aiclean.ezp"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
