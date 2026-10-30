@@ -10,6 +10,8 @@ import com.looper.base.database.dao.DownloadJobDao
 import com.looper.base.database.dao.DownloadedFileDao
 import com.looper.base.database.dao.EqPresetDao
 import com.looper.base.database.dao.LyricsDao
+import com.looper.base.database.dao.LyricsDecorationDao
+import com.looper.base.database.dao.LyricsProviderMissDao
 import com.looper.base.database.dao.MediaItemDao
 import com.looper.base.database.dao.PlatformDao
 import com.looper.base.database.dao.PlayHistoryDao
@@ -17,7 +19,9 @@ import com.looper.base.database.dao.PlaylistDao
 import com.looper.base.database.data.DownloadJobEntity
 import com.looper.base.database.data.DownloadedFileEntity
 import com.looper.base.database.data.EqPresetEntity
+import com.looper.base.database.data.LyricsDecorationEntity
 import com.looper.base.database.data.LyricsEntity
+import com.looper.base.database.data.LyricsProviderMissEntity
 import com.looper.base.database.data.MediaItemEntity
 import com.looper.base.database.data.PlatformEntity
 import com.looper.base.database.data.PlayHistoryEntity
@@ -36,6 +40,8 @@ private const val DATABASE_NAME = "audio_player.db"
         DownloadJobEntity::class,
         PlayHistoryEntity::class,
         LyricsEntity::class,
+        LyricsProviderMissEntity::class,
+        LyricsDecorationEntity::class,
         EqPresetEntity::class,
     ],
     version = 1,
@@ -56,6 +62,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playHistoryDao(): PlayHistoryDao
 
     abstract fun lyricsDao(): LyricsDao
+
+    abstract fun lyricsProviderMissDao(): LyricsProviderMissDao
+
+    abstract fun lyricsDecorationDao(): LyricsDecorationDao
 
     abstract fun eqPresetDao(): EqPresetDao
 }

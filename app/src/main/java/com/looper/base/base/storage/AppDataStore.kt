@@ -7,12 +7,16 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.looper.ads.AdsDataPreference
 import com.looper.base.MyApplication
+import com.looper.base.database.data.LyricsProvider
 import com.looper.base.equalizer.model.EqConstants
 import com.looper.base.equalizer.model.EqSettings
+import com.looper.base.lyrics.model.LyricsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -120,6 +124,99 @@ fun updateEqSettings(value: EqSettings) = dataStoreWrite {
         settings[EQ_BASS_BOOST_KEY] = normalized.bassBoost
         settings[EQ_VIRTUALIZER_KEY] = normalized.virtualizer
         settings[EQ_LOUDNESS_KEY] = normalized.loudnessGainMb
+    }
+}
+
+val LYRICS_ENABLED_KEY = booleanPreferencesKey(name = "LYRICS_ENABLED")
+val LYRICS_WORD_SYNC_KEY = booleanPreferencesKey(name = "LYRICS_WORD_SYNC")
+val LYRICS_USE_EMBEDDED_KEY = booleanPreferencesKey(name = "LYRICS_USE_EMBEDDED")
+val LYRICS_PROVIDERS_KEY = stringPreferencesKey(name = "LYRICS_PROVIDERS")
+val LYRICS_OFFSET_MS_KEY = longPreferencesKey(name = "LYRICS_OFFSET_MS")
+val LYRICS_TEXT_SIZE_KEY = intPreferencesKey(name = "LYRICS_TEXT_SIZE")
+val LYRICS_TAP_TO_SEEK_KEY = booleanPreferencesKey(name = "LYRICS_TAP_TO_SEEK")
+val LYRICS_TRANSLATION_ENABLED_KEY = booleanPreferencesKey(name = "LYRICS_TRANSLATION_ENABLED")
+val LYRICS_TRANSLATION_LANGUAGE_KEY = stringPreferencesKey(name = "LYRICS_TRANSLATION_LANGUAGE")
+val LYRICS_ROMANIZATION_ENABLED_KEY = booleanPreferencesKey(name = "LYRICS_ROMANIZATION_ENABLED")
+val LYRICS_TRANSLATION_EXCLUDED_KEY = stringSetPreferencesKey(name = "LYRICS_TRANSLATION_EXCLUDED")
+val LYRICS_ROMANIZATION_EXCLUDED_KEY =
+    stringSetPreferencesKey(name = "LYRICS_ROMANIZATION_EXCLUDED")
+val LYRICS_BLUR_INACTIVE_KEY = booleanPreferencesKey(name = "LYRICS_BLUR_INACTIVE")
+val LYRICS_GLOW_LONG_WORDS_KEY = booleanPreferencesKey(name = "LYRICS_GLOW_LONG_WORDS")
+
+private const val LYRICS_PROVIDER_DISABLED_PREFIX = "-"
+
+val lyricsSettings: Flow<LyricsSettings> = data.map { preferences ->
+    val defaults = LyricsSettings()
+    val providerTokens = preferences[LYRICS_PROVIDERS_KEY]
+        ?.split(',')
+        ?.map {
+            it.trim()
+        }?.filter {
+            it.isNotEmpty()
+        }
+    LyricsSettings(
+        enabled = preferences[LYRICS_ENABLED_KEY] ?: defaults.enabled,
+        wordSync = preferences[LYRICS_WORD_SYNC_KEY] ?: defaults.wordSync,
+        useEmbedded = preferences[LYRICS_USE_EMBEDDED_KEY] ?: defaults.useEmbedded,
+        providerOrder = providerTokens
+            ?.mapNotNull {
+                LyricsProvider.fromName(name = it.removePrefix(prefix = LYRICS_PROVIDER_DISABLED_PREFIX))
+            }
+            ?: defaults.providerOrder,
+        disabledProviders = providerTokens
+            ?.filter {
+                it.startsWith(prefix = LYRICS_PROVIDER_DISABLED_PREFIX)
+            }?.mapNotNull {
+                LyricsProvider.fromName(name = it.removePrefix(prefix = LYRICS_PROVIDER_DISABLED_PREFIX))
+            }
+            ?.toSet()
+            ?: defaults.disabledProviders,
+        offsetMs = preferences[LYRICS_OFFSET_MS_KEY] ?: defaults.offsetMs,
+        textSizeSp = preferences[LYRICS_TEXT_SIZE_KEY] ?: defaults.textSizeSp,
+        tapToSeek = preferences[LYRICS_TAP_TO_SEEK_KEY] ?: defaults.tapToSeek,
+        translationEnabled = preferences[LYRICS_TRANSLATION_ENABLED_KEY]
+            ?: defaults.translationEnabled,
+        translationLanguage = preferences[LYRICS_TRANSLATION_LANGUAGE_KEY]
+            ?: defaults.translationLanguage,
+        romanizationEnabled = preferences[LYRICS_ROMANIZATION_ENABLED_KEY]
+            ?: defaults.romanizationEnabled,
+        translationExcludedLanguages = preferences[LYRICS_TRANSLATION_EXCLUDED_KEY]
+            ?: defaults.translationExcludedLanguages,
+        romanizationExcludedLanguages = preferences[LYRICS_ROMANIZATION_EXCLUDED_KEY]
+            ?: defaults.romanizationExcludedLanguages,
+        blurInactiveLines = preferences[LYRICS_BLUR_INACTIVE_KEY] ?: defaults.blurInactiveLines,
+        glowLongWords = preferences[LYRICS_GLOW_LONG_WORDS_KEY] ?: defaults.glowLongWords,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateLyricsSettings(value: LyricsSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[LYRICS_ENABLED_KEY] = normalized.enabled
+        settings[LYRICS_WORD_SYNC_KEY] = normalized.wordSync
+        settings[LYRICS_USE_EMBEDDED_KEY] = normalized.useEmbedded
+        settings[LYRICS_PROVIDERS_KEY] = normalized.providerOrder.joinToString(separator = ",") {
+            if (it in normalized.disabledProviders) {
+                LYRICS_PROVIDER_DISABLED_PREFIX + it.name
+            } else {
+                it.name
+            }
+        }
+        settings[LYRICS_OFFSET_MS_KEY] = normalized.offsetMs
+        settings[LYRICS_TEXT_SIZE_KEY] = normalized.textSizeSp
+        settings[LYRICS_TAP_TO_SEEK_KEY] = normalized.tapToSeek
+        settings[LYRICS_TRANSLATION_ENABLED_KEY] = normalized.translationEnabled
+        val translationLanguage = normalized.translationLanguage
+        if (translationLanguage == null) {
+            settings.remove(key = LYRICS_TRANSLATION_LANGUAGE_KEY)
+        } else {
+            settings[LYRICS_TRANSLATION_LANGUAGE_KEY] = translationLanguage
+        }
+        settings[LYRICS_ROMANIZATION_ENABLED_KEY] = normalized.romanizationEnabled
+        settings[LYRICS_TRANSLATION_EXCLUDED_KEY] = normalized.translationExcludedLanguages
+        settings[LYRICS_ROMANIZATION_EXCLUDED_KEY] = normalized.romanizationExcludedLanguages
+        settings[LYRICS_BLUR_INACTIVE_KEY] = normalized.blurInactiveLines
+        settings[LYRICS_GLOW_LONG_WORDS_KEY] = normalized.glowLongWords
     }
 }
 

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "30a42db2fbdd7e2d30d59ea97b68ead6",
+    "identityHash": "60a1028998bf57e143d2faaf7614d3fc",
     "entities": [
       {
         "tableName": "platform",
@@ -642,7 +642,7 @@
       },
       {
         "tableName": "lyrics",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaItemId` TEXT NOT NULL, `syncLevel` TEXT NOT NULL, `content` TEXT, `source` TEXT, `fetchedAt` INTEGER, `lastAttemptAt` INTEGER NOT NULL, `attemptCount` INTEGER NOT NULL, PRIMARY KEY(`mediaItemId`), FOREIGN KEY(`mediaItemId`) REFERENCES `media_item`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaItemId` TEXT NOT NULL, `syncLevel` TEXT NOT NULL, `format` TEXT, `rawContent` TEXT, `linesJson` TEXT, `parserVersion` INTEGER NOT NULL, `songwriters` TEXT, `language` TEXT, `source` TEXT, `sourceUrl` TEXT, `matchScore` INTEGER, `userOffsetMs` INTEGER NOT NULL, `fetchedAt` INTEGER, `lastAttemptAt` INTEGER NOT NULL, `attemptCount` INTEGER NOT NULL, PRIMARY KEY(`mediaItemId`), FOREIGN KEY(`mediaItemId`) REFERENCES `media_item`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "mediaItemId",
@@ -657,14 +657,56 @@
             "notNull": true
           },
           {
-            "fieldPath": "content",
-            "columnName": "content",
+            "fieldPath": "format",
+            "columnName": "format",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawContent",
+            "columnName": "rawContent",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "linesJson",
+            "columnName": "linesJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "parserVersion",
+            "columnName": "parserVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "songwriters",
+            "columnName": "songwriters",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
             "affinity": "TEXT"
           },
           {
             "fieldPath": "source",
             "columnName": "source",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "sourceUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "matchScore",
+            "columnName": "matchScore",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "userOffsetMs",
+            "columnName": "userOffsetMs",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "fetchedAt",
@@ -700,6 +742,119 @@
             ],
             "referencedColumns": [
               "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "lyrics_provider_miss",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaItemId` TEXT NOT NULL, `provider` TEXT NOT NULL, `attemptedAt` INTEGER NOT NULL, PRIMARY KEY(`mediaItemId`, `provider`), FOREIGN KEY(`mediaItemId`) REFERENCES `media_item`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "mediaItemId",
+            "columnName": "mediaItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptedAt",
+            "columnName": "attemptedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mediaItemId",
+            "provider"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "media_item",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mediaItemId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "lyrics_decoration",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaItemId` TEXT NOT NULL, `kind` TEXT NOT NULL, `language` TEXT NOT NULL, `source` TEXT NOT NULL, `linesJson` TEXT NOT NULL, `lineCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`mediaItemId`, `kind`, `language`), FOREIGN KEY(`mediaItemId`) REFERENCES `lyrics`(`mediaItemId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "mediaItemId",
+            "columnName": "mediaItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "linesJson",
+            "columnName": "linesJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lineCount",
+            "columnName": "lineCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mediaItemId",
+            "kind",
+            "language"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "lyrics",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mediaItemId"
+            ],
+            "referencedColumns": [
+              "mediaItemId"
             ]
           }
         ]
@@ -772,7 +927,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30a42db2fbdd7e2d30d59ea97b68ead6')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '60a1028998bf57e143d2faaf7614d3fc')"
     ]
   }
 }
