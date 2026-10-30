@@ -13,26 +13,26 @@ import com.looper.iap.catalog.IapCatalog
 object PlayIapCatalog {
     val catalog: IapCatalog = IapCatalog {
         subscription(
-            productId = "ai_photo_gen_subs",
+            productId = "ai_cleaner_subs",
             entitlementId = "premium",
         ) {
             plan(
                 key = "WeeklyOriginal",
-                basePlanId = "ai-photo-editor-subs-week",
+                basePlanId = "ai-cleaner-week",
             ) {
                 baseOffer()
             }
 
-            plan(
-                key = "MonthlyOriginal",
-                basePlanId = "ai-photo-editor-subs-month",
-            ) {
-                baseOffer()
-            }
+//            plan(
+//                key = "MonthlyOriginal",
+//                basePlanId = "ai-cleaner-subs-month",
+//            ) {
+//                baseOffer()
+//            }
 
             plan(
                 key = "YearlyOriginal",
-                basePlanId = "ai-photo-editor-subs-year",
+                basePlanId = "ai-cleaner-year",
             ) {
                 baseOffer()
             }

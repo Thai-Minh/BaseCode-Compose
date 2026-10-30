@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "820420883018",
-    "project_id": "photo-enhance-8688",
-    "storage_bucket": "photo-enhance-8688.firebasestorage.app"
+    "project_number": "953296023838",
+    "project_id": "og---ai-cleaner---g1",
+    "storage_bucket": "og---ai-cleaner---g1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:820420883018:android:a4361d0ecb82c103b5ecb3",
+        "mobilesdk_app_id": "1:953296023838:android:a64cdec3faede825b9590f",
         "android_client_info": {
-          "package_name": "com.cubstudio.aiphotoeditor.photoenhance"
+          "package_name": "com.ezla.cleaner.aiclean.ezp"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyABzOXILuGMYe2sR7043MfUKTxyUex-kLY"
+          "current_key": "AIzaSyCgkfMzs_bXgS7WE6R-H2mHl2kXA3g7Cmc"
         }
       ],
       "services": {
