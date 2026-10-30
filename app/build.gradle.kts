@@ -149,6 +149,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
 
+    // Kotlin Serialization
+    implementation(libs.kotlinx.serialization.json)
+
     // Room DB
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
