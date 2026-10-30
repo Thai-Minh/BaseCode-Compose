@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.looper.base.equalizer.audio.AudioEffectController
 import com.looper.base.equalizer.data.EqRepository
 import com.looper.base.player.sleeptimer.SleepTimerCommands
+import com.looper.base.player.source.HeaderAwareMediaSourceFactory
 import com.looper.base.player.sleeptimer.SleepTimerCommands.writeTo
 import com.looper.base.player.sleeptimer.SleepTimerController
 import com.looper.base.player.sleeptimer.SleepTimerMode
@@ -57,6 +58,7 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
 
         val exoPlayer = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(HeaderAwareMediaSourceFactory(context = this))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -94,10 +96,7 @@ class PlaybackService : MediaSessionService() {
         mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val current = player
-        if (current == null || !current.playWhenReady || current.mediaItemCount == 0) {
-            stopSelf()
-        }
+        pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {

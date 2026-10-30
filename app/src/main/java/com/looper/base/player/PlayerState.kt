@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import com.looper.base.database.data.MediaType
+import com.looper.base.player.source.MediaItemKeys.mediaType
 
 data class PlayerState(
     val isConnected: Boolean = false,
@@ -20,12 +22,21 @@ data class PlayerState(
     @Player.RepeatMode val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleEnabled: Boolean = false,
     val videoSize: VideoSize = VideoSize.UNKNOWN,
+    val hasVideoTrack: Boolean = false,
+    val videoEnabled: Boolean = true,
+    val mediaType: MediaType? = null,
 ) {
     val hasMedia: Boolean
         get() = mediaId != null
 
     val hasVideo: Boolean
         get() = videoSize.width > 0 && videoSize.height > 0
+
+    val isVideoSource: Boolean
+        get() = hasVideoTrack || mediaType == MediaType.VIDEO
+
+    val showsVideo: Boolean
+        get() = hasVideoTrack && videoEnabled
 
     val isBuffering: Boolean
         get() = playbackState == Player.STATE_BUFFERING
@@ -53,6 +64,10 @@ data class PlayerState(
                 repeatMode = player.repeatMode,
                 shuffleEnabled = player.shuffleModeEnabled,
                 videoSize = player.videoSize,
+                hasVideoTrack = player.currentTracks.groups.any { it.type == C.TRACK_TYPE_VIDEO },
+                videoEnabled = !player.trackSelectionParameters.disabledTrackTypes
+                    .contains(C.TRACK_TYPE_VIDEO),
+                mediaType = player.currentMediaItem?.mediaType(),
             )
         }
     }

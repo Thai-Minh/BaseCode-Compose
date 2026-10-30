@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -162,6 +163,14 @@ class PlayerConnection(
         current.setMediaItems(items, startIndex, startPositionMs)
         current.prepare()
         current.playWhenReady = playWhenReady
+    }
+
+    fun setVideoEnabled(enabled: Boolean) {
+        val current = controller.value ?: return
+        current.trackSelectionParameters = current.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !enabled)
+            .build()
     }
 
     fun startSleepTimer(durationMs: Long) {

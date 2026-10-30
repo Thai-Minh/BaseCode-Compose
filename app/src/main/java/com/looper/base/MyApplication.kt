@@ -21,6 +21,8 @@ import com.looper.iap.model.IapConfig
 import com.looper.iap.model.TrustPlayPurchaseVerifier
 import com.looper.base.utils.firebase.FRRemoteConfig
 import com.looper.base.utils.isNetworkAvailable
+import io.ytdlp.android.YtDlpAndroid
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -70,6 +72,12 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
             androidLogger()
             androidContext(this@MyApplication)
             modules(appModule, networkModule, repositoryModule, viewModelModule, notificationModule)
+        }
+
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                YtDlpAndroid.init(this@MyApplication)
+            }
         }
 
         ProcessLifecycleOwner.get().lifecycleScope.launch {
