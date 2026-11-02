@@ -36,6 +36,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.looper.ads.ui.AppConsentManager
 import com.looper.base.base.ui.BaseActivity
+import com.looper.base.deeplink.IncomingLinkDispatcher
 import com.looper.base.player.PlayerConnection
 import com.looper.base.player.PlayerState
 import com.looper.base.player.pip.PipManager
@@ -50,6 +51,7 @@ class MainActivity : AppCompatActivity() {
 
     private val playerConnection: PlayerConnection by inject()
     private val pipManager: PipManager by inject()
+    private val incomingLinkDispatcher: IncomingLinkDispatcher by inject()
 
     private var latestPlayerState = PlayerState()
 
@@ -93,6 +95,10 @@ class MainActivity : AppCompatActivity() {
 
         AppConsentManager.gatherConsent(this)
 
+        if (savedInstanceState == null) {
+            incomingLinkDispatcher.handle(intent = intent)
+        }
+
         setupPictureInPicture()
 
         setContent {
@@ -116,6 +122,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingLinkDispatcher.handle(intent = intent)
+    }
 
     private fun setupPictureInPicture() {
         if (!pipManager.isSupported(context = this)) {

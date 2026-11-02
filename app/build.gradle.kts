@@ -30,6 +30,9 @@ android {
 
         val appName = project.findProperty("appName") ?: "BaseApp"
         base.archivesName = "${appName}_V${versionName}"
+
+        buildConfigField("String", "LASTFM_API_KEY", "\"${project.findProperty("lastfmApiKey") ?: ""}\"")
+        buildConfigField("String", "LASTFM_API_SECRET", "\"${project.findProperty("lastfmApiSecret") ?: ""}\"")
     }
 
     signingConfigs {
@@ -149,8 +152,19 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
 
+    // Glance widgets
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.protobuf)
+
+    // OkHttp
+    implementation(libs.okhttp)
 
     // Room DB
     implementation(libs.androidx.room.ktx)

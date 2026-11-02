@@ -12,6 +12,12 @@ import com.looper.base.database.data.PlaylistEntity
 import com.looper.base.database.data.PlaylistItemEntity
 import kotlinx.coroutines.flow.Flow
 
+data class PlaylistEntry(
+    @Embedded val item: MediaItemEntity,
+    val position: Int,
+    val playlistAddedAt: Long,
+)
+
 data class PlaylistSummary(
     @Embedded val playlist: PlaylistEntity,
     val itemCount: Int,
@@ -53,6 +59,23 @@ interface PlaylistDao {
         """
     )
     fun observeItems(playlistId: String): Flow<List<MediaItemEntity>>
+
+    @Query(
+        """
+        SELECT m.*, pi.position AS position, pi.addedAt AS playlistAddedAt FROM media_item m
+        INNER JOIN playlist_item pi ON pi.mediaItemId = m.id
+        WHERE pi.playlistId = :playlistId
+        ORDER BY pi.position ASC
+        """
+    )
+    fun observeEntries(playlistId: String): Flow<List<PlaylistEntry>>
+
+    @Query("UPDATE playlist SET thumbnailPath = :thumbnailPath, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setThumbnail(
+        id: String,
+        thumbnailPath: String?,
+        updatedAt: Long = System.currentTimeMillis()
+    )
 
     @Query(
         """

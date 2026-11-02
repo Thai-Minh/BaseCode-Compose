@@ -29,5 +29,6 @@ data class DownloadedFileEntity(
     val localUri: String,
     val mimeType: String,
     val size: Long,
+    val origin: DownloadOrigin = DownloadOrigin.USER,
     val downloadedAt: Long = System.currentTimeMillis(),
 )

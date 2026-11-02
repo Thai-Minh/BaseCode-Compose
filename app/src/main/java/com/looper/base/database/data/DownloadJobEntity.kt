@@ -37,6 +37,7 @@ data class DownloadJobEntity(
     val downloadedBytes: Long = 0L,
     val totalBytes: Long = -1L,
     val error: String? = null,
+    val origin: DownloadOrigin = DownloadOrigin.USER,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
 )

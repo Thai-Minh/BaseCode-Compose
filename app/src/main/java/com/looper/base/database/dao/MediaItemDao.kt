@@ -20,6 +20,26 @@ interface MediaItemDao {
     @Query("SELECT * FROM media_item WHERE id = :id LIMIT 1")
     suspend fun get(id: String): MediaItemEntity?
 
+    @Query("SELECT * FROM media_item WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<String>): List<MediaItemEntity>
+
+    @Query(
+        """
+        SELECT m.* FROM media_item m
+        INNER JOIN (
+            SELECT mediaItemId, MAX(startedAt) AS lastStartedAt
+            FROM playback_event
+            GROUP BY mediaItemId
+        ) e ON e.mediaItemId = m.id
+        ORDER BY e.lastStartedAt DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecentlyListened(limit: Int): List<MediaItemEntity>
+
+    @Query("SELECT * FROM media_item WHERE playCount > 0 ORDER BY playCount DESC, addedAt DESC LIMIT :limit")
+    suspend fun getMostPlayed(limit: Int): List<MediaItemEntity>
+
     @Query("SELECT * FROM media_item WHERE sourceUrl = :sourceUrl LIMIT 1")
     suspend fun getBySourceUrl(sourceUrl: String): MediaItemEntity?
 
@@ -75,6 +95,9 @@ interface MediaItemDao {
 
     @Query("UPDATE media_item SET playCount = playCount + 1 WHERE id = :id")
     suspend fun incrementPlayCount(id: String)
+
+    @Query("UPDATE media_item SET loudnessDb = :loudnessDb WHERE id = :id")
+    suspend fun setLoudness(id: String, loudnessDb: Float)
 
     @Query("UPDATE media_item SET thumbnailLocalPath = :path WHERE id = :id")
     suspend fun setThumbnailLocalPath(id: String, path: String?)

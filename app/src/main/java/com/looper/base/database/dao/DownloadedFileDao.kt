@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.looper.base.database.data.DownloadKind
+import com.looper.base.database.data.DownloadOrigin
 import com.looper.base.database.data.DownloadedFileEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -37,4 +38,7 @@ interface DownloadedFileDao {
 
     @Query("DELETE FROM downloaded_file WHERE localUri = :localUri")
     suspend fun deleteByLocalUri(localUri: String): Int
+
+    @Query("SELECT * FROM downloaded_file WHERE origin = :origin")
+    suspend fun getByOrigin(origin: DownloadOrigin): List<DownloadedFileEntity>
 }

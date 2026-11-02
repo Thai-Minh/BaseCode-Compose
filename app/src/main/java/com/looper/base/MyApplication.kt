@@ -9,23 +9,26 @@ import com.looper.ads.AdsDataPreference
 import com.looper.ads.AdsInitializationError
 import com.looper.ads.bindAdEligibility
 import com.looper.ads.initAd
+import com.looper.base.deeplink.AppShortcuts
 import com.looper.base.di.appModule
 import com.looper.base.di.networkModule
 import com.looper.base.di.notificationModule
 import com.looper.base.di.repositoryModule
 import com.looper.base.di.viewModelModule
 import com.looper.base.iap.data.PlayIapCatalog
+import com.looper.base.utils.firebase.FRRemoteConfig
+import com.looper.base.utils.isNetworkAvailable
+import com.looper.base.work.BackgroundWorkScheduler
 import com.looper.iap.BillingManagerImpl
 import com.looper.iap.OrigoIapSdk
 import com.looper.iap.model.IapConfig
 import com.looper.iap.model.TrustPlayPurchaseVerifier
-import com.looper.base.utils.firebase.FRRemoteConfig
-import com.looper.base.utils.isNetworkAvailable
 import io.ytdlp.android.YtDlpAndroid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -79,6 +82,9 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
                 YtDlpAndroid.init(this@MyApplication)
             }
         }
+
+        get<BackgroundWorkScheduler>().start(scope = ProcessLifecycleOwner.get().lifecycleScope)
+        AppShortcuts.publish(context = this)
 
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             FRRemoteConfig.fetchShowAdsWhenReview

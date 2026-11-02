@@ -6,6 +6,7 @@ enum class LyricsProvider(
     val defaultEnabled: Boolean = false,
 ) {
     EMBEDDED(displayName = "Embedded tags", isRemote = false, defaultEnabled = true),
+    USER(displayName = "Added by you", isRemote = false),
     LRCLIB(displayName = "LRCLIB", defaultEnabled = true),
     YOUTUBE_MUSIC(displayName = "YouTube Music"),
     APPLE_MUSIC(displayName = "Apple Music"),

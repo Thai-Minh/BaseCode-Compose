@@ -2,10 +2,12 @@ package com.looper.base.base.storage
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -13,10 +15,23 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.looper.ads.AdsDataPreference
 import com.looper.base.MyApplication
+import com.looper.base.backup.model.BackupFrequency
+import com.looper.base.backup.model.BackupSettings
 import com.looper.base.database.data.LyricsProvider
+import com.looper.base.download.model.AudioDownloadFormat
+import com.looper.base.download.model.DownloadSettings
+import com.looper.base.equalizer.model.AudioEffectsSettings
 import com.looper.base.equalizer.model.EqConstants
+import com.looper.base.equalizer.model.EqEngine
 import com.looper.base.equalizer.model.EqSettings
+import com.looper.base.equalizer.model.ReverbPreset
+import com.looper.base.equalizer.model.TenBandEqSettings
+import com.looper.base.lastfm.model.LastFmSettings
+import com.looper.base.listentogether.model.ListenTogetherConstants
+import com.looper.base.listentogether.model.ListenTogetherSettings
 import com.looper.base.lyrics.model.LyricsSettings
+import com.looper.base.player.model.PlaybackSnapshot
+import com.looper.base.player.model.PlayerSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +45,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "my_app_name_data_store") // TODO: change name
+const val DATA_STORE_NAME = "my_app_name_data_store"
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = DATA_STORE_NAME)
 private val dataStore: DataStore<Preferences>
     get() = MyApplication.instance.dataStore
 
@@ -124,6 +141,296 @@ fun updateEqSettings(value: EqSettings) = dataStoreWrite {
         settings[EQ_BASS_BOOST_KEY] = normalized.bassBoost
         settings[EQ_VIRTUALIZER_KEY] = normalized.virtualizer
         settings[EQ_LOUDNESS_KEY] = normalized.loudnessGainMb
+    }
+}
+
+val TEN_BAND_ENGINE_KEY = stringPreferencesKey(name = "TEN_BAND_ENGINE")
+val TEN_BAND_GAINS_KEY = stringPreferencesKey(name = "TEN_BAND_GAINS")
+val TEN_BAND_PREAMP_KEY = floatPreferencesKey(name = "TEN_BAND_PREAMP")
+val TEN_BAND_PROFILE_KEY = stringPreferencesKey(name = "TEN_BAND_PROFILE")
+
+val tenBandEqSettings: Flow<TenBandEqSettings> = data.map { preferences ->
+    val defaults = TenBandEqSettings()
+    TenBandEqSettings(
+        engine = preferences[TEN_BAND_ENGINE_KEY]
+            ?.let { name ->
+                EqEngine.entries.firstOrNull {
+                    it.name == name
+                }
+            }
+            ?: defaults.engine,
+        gainsDb = preferences[TEN_BAND_GAINS_KEY]
+            ?.split(',')
+            ?.mapNotNull {
+                it.trim().toFloatOrNull()
+            }
+            ?: defaults.gainsDb,
+        preampDb = preferences[TEN_BAND_PREAMP_KEY] ?: defaults.preampDb,
+        profileName = preferences[TEN_BAND_PROFILE_KEY],
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateTenBandEqSettings(value: TenBandEqSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[TEN_BAND_ENGINE_KEY] = normalized.engine.name
+        settings[TEN_BAND_GAINS_KEY] = normalized.gainsDb.joinToString(separator = ",")
+        settings[TEN_BAND_PREAMP_KEY] = normalized.preampDb
+        val profileName = normalized.profileName
+        if (profileName == null) {
+            settings.remove(key = TEN_BAND_PROFILE_KEY)
+        } else {
+            settings[TEN_BAND_PROFILE_KEY] = profileName
+        }
+    }
+}
+
+val PLAYER_SPEED_KEY = floatPreferencesKey(name = "PLAYER_SPEED")
+val PLAYER_PITCH_KEY = floatPreferencesKey(name = "PLAYER_PITCH")
+val PLAYER_SKIP_SILENCE_KEY = booleanPreferencesKey(name = "PLAYER_SKIP_SILENCE")
+val PLAYER_CACHE_SIZE_MB_KEY = intPreferencesKey(name = "PLAYER_CACHE_SIZE_MB")
+val PLAYER_NORMALIZE_VOLUME_KEY = booleanPreferencesKey(name = "PLAYER_NORMALIZE_VOLUME")
+val PLAYER_VIDEO_MAX_HEIGHT_KEY = intPreferencesKey(name = "PLAYER_VIDEO_MAX_HEIGHT")
+val PLAYER_AUDIO_LANGUAGE_KEY = stringPreferencesKey(name = "PLAYER_AUDIO_LANGUAGE")
+val PLAYER_SUBTITLE_LANGUAGE_KEY = stringPreferencesKey(name = "PLAYER_SUBTITLE_LANGUAGE")
+val PLAYER_STOP_ON_TASK_REMOVED_KEY = booleanPreferencesKey(name = "PLAYER_STOP_ON_TASK_REMOVED")
+
+val playerSettings: Flow<PlayerSettings> = data.map { preferences ->
+    val defaults = PlayerSettings()
+    PlayerSettings(
+        playbackSpeed = preferences[PLAYER_SPEED_KEY] ?: defaults.playbackSpeed,
+        pitchSemitones = preferences[PLAYER_PITCH_KEY] ?: defaults.pitchSemitones,
+        skipSilence = preferences[PLAYER_SKIP_SILENCE_KEY] ?: defaults.skipSilence,
+        cacheSizeMb = preferences[PLAYER_CACHE_SIZE_MB_KEY] ?: defaults.cacheSizeMb,
+        normalizeVolume = preferences[PLAYER_NORMALIZE_VOLUME_KEY] ?: defaults.normalizeVolume,
+        videoMaxHeight = preferences[PLAYER_VIDEO_MAX_HEIGHT_KEY] ?: defaults.videoMaxHeight,
+        preferredAudioLanguage = preferences[PLAYER_AUDIO_LANGUAGE_KEY],
+        subtitleLanguage = preferences[PLAYER_SUBTITLE_LANGUAGE_KEY],
+        stopOnTaskRemoved = preferences[PLAYER_STOP_ON_TASK_REMOVED_KEY]
+            ?: defaults.stopOnTaskRemoved,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updatePlayerSettings(value: PlayerSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[PLAYER_SPEED_KEY] = normalized.playbackSpeed
+        settings[PLAYER_PITCH_KEY] = normalized.pitchSemitones
+        settings[PLAYER_SKIP_SILENCE_KEY] = normalized.skipSilence
+        settings[PLAYER_CACHE_SIZE_MB_KEY] = normalized.cacheSizeMb
+        settings[PLAYER_NORMALIZE_VOLUME_KEY] = normalized.normalizeVolume
+        settings[PLAYER_VIDEO_MAX_HEIGHT_KEY] = normalized.videoMaxHeight
+        settings.setOrRemove(
+            key = PLAYER_AUDIO_LANGUAGE_KEY,
+            value = normalized.preferredAudioLanguage
+        )
+        settings.setOrRemove(
+            key = PLAYER_SUBTITLE_LANGUAGE_KEY,
+            value = normalized.subtitleLanguage
+        )
+        settings[PLAYER_STOP_ON_TASK_REMOVED_KEY] = normalized.stopOnTaskRemoved
+    }
+}
+
+val PLAYBACK_INDEX_KEY = intPreferencesKey(name = "PLAYBACK_INDEX")
+val PLAYBACK_POSITION_KEY = longPreferencesKey(name = "PLAYBACK_POSITION")
+val PLAYBACK_REPEAT_MODE_KEY = intPreferencesKey(name = "PLAYBACK_REPEAT_MODE")
+val PLAYBACK_SHUFFLE_KEY = booleanPreferencesKey(name = "PLAYBACK_SHUFFLE")
+
+val playbackSnapshot: Flow<PlaybackSnapshot> = data.map { preferences ->
+    val defaults = PlaybackSnapshot()
+    PlaybackSnapshot(
+        currentIndex = preferences[PLAYBACK_INDEX_KEY] ?: defaults.currentIndex,
+        positionMs = preferences[PLAYBACK_POSITION_KEY] ?: defaults.positionMs,
+        repeatMode = preferences[PLAYBACK_REPEAT_MODE_KEY] ?: defaults.repeatMode,
+        shuffleEnabled = preferences[PLAYBACK_SHUFFLE_KEY] ?: defaults.shuffleEnabled,
+    )
+}.distinctUntilChanged()
+
+fun updatePlaybackSnapshot(value: PlaybackSnapshot) = dataStoreWrite {
+    dataStore.edit { settings ->
+        settings[PLAYBACK_INDEX_KEY] = value.currentIndex
+        settings[PLAYBACK_POSITION_KEY] = value.positionMs
+        settings[PLAYBACK_REPEAT_MODE_KEY] = value.repeatMode
+        settings[PLAYBACK_SHUFFLE_KEY] = value.shuffleEnabled
+    }
+}
+
+val SMART_DOWNLOADS_ENABLED_KEY = booleanPreferencesKey(name = "SMART_DOWNLOADS_ENABLED")
+val SMART_DOWNLOADS_COUNT_KEY = intPreferencesKey(name = "SMART_DOWNLOADS_COUNT")
+val DOWNLOAD_UNMETERED_ONLY_KEY = booleanPreferencesKey(name = "DOWNLOAD_UNMETERED_ONLY")
+val DOWNLOAD_AUTO_FAVORITES_KEY = booleanPreferencesKey(name = "DOWNLOAD_AUTO_FAVORITES")
+val DOWNLOAD_AUDIO_FORMAT_KEY = stringPreferencesKey(name = "DOWNLOAD_AUDIO_FORMAT")
+val DOWNLOAD_VIDEO_MAX_HEIGHT_KEY = intPreferencesKey(name = "DOWNLOAD_VIDEO_MAX_HEIGHT")
+
+val downloadSettings: Flow<DownloadSettings> = data.map { preferences ->
+    val defaults = DownloadSettings()
+    DownloadSettings(
+        smartDownloadsEnabled = preferences[SMART_DOWNLOADS_ENABLED_KEY]
+            ?: defaults.smartDownloadsEnabled,
+        smartDownloadsCount = preferences[SMART_DOWNLOADS_COUNT_KEY]
+            ?: defaults.smartDownloadsCount,
+        unmeteredOnly = preferences[DOWNLOAD_UNMETERED_ONLY_KEY] ?: defaults.unmeteredOnly,
+        autoDownloadFavorites = preferences[DOWNLOAD_AUTO_FAVORITES_KEY]
+            ?: defaults.autoDownloadFavorites,
+        audioFormat = preferences[DOWNLOAD_AUDIO_FORMAT_KEY]
+            ?.let { name ->
+                AudioDownloadFormat.entries.firstOrNull {
+                    it.name == name
+                }
+            }
+            ?: defaults.audioFormat,
+        videoMaxHeight = preferences[DOWNLOAD_VIDEO_MAX_HEIGHT_KEY] ?: defaults.videoMaxHeight,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateDownloadSettings(value: DownloadSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[SMART_DOWNLOADS_ENABLED_KEY] = normalized.smartDownloadsEnabled
+        settings[SMART_DOWNLOADS_COUNT_KEY] = normalized.smartDownloadsCount
+        settings[DOWNLOAD_UNMETERED_ONLY_KEY] = normalized.unmeteredOnly
+        settings[DOWNLOAD_AUTO_FAVORITES_KEY] = normalized.autoDownloadFavorites
+        settings[DOWNLOAD_AUDIO_FORMAT_KEY] = normalized.audioFormat.name
+        settings[DOWNLOAD_VIDEO_MAX_HEIGHT_KEY] = normalized.videoMaxHeight
+    }
+}
+
+val AUTO_BACKUP_ENABLED_KEY = booleanPreferencesKey(name = "AUTO_BACKUP_ENABLED")
+val AUTO_BACKUP_FREQUENCY_KEY = stringPreferencesKey(name = "AUTO_BACKUP_FREQUENCY")
+val AUTO_BACKUP_MAX_FILES_KEY = intPreferencesKey(name = "AUTO_BACKUP_MAX_FILES")
+
+val backupSettings: Flow<BackupSettings> = data.map { preferences ->
+    val defaults = BackupSettings()
+    BackupSettings(
+        autoBackupEnabled = preferences[AUTO_BACKUP_ENABLED_KEY] ?: defaults.autoBackupEnabled,
+        frequency = preferences[AUTO_BACKUP_FREQUENCY_KEY]
+            ?.let { name ->
+                BackupFrequency.entries.firstOrNull {
+                    it.name == name
+                }
+            }
+            ?: defaults.frequency,
+        maxFiles = preferences[AUTO_BACKUP_MAX_FILES_KEY] ?: defaults.maxFiles,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateBackupSettings(value: BackupSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[AUTO_BACKUP_ENABLED_KEY] = normalized.autoBackupEnabled
+        settings[AUTO_BACKUP_FREQUENCY_KEY] = normalized.frequency.name
+        settings[AUTO_BACKUP_MAX_FILES_KEY] = normalized.maxFiles
+    }
+}
+
+val LASTFM_SCROBBLE_ENABLED_KEY = booleanPreferencesKey(name = "LASTFM_SCROBBLE_ENABLED")
+val LASTFM_SESSION_KEY = stringPreferencesKey(name = "LASTFM_SESSION")
+val LASTFM_USERNAME_KEY = stringPreferencesKey(name = "LASTFM_USERNAME")
+
+val lastFmSettings: Flow<LastFmSettings> = data.map { preferences ->
+    val defaults = LastFmSettings()
+    LastFmSettings(
+        scrobbleEnabled = preferences[LASTFM_SCROBBLE_ENABLED_KEY] ?: defaults.scrobbleEnabled,
+        sessionKey = preferences[LASTFM_SESSION_KEY],
+        username = preferences[LASTFM_USERNAME_KEY],
+    )
+}.distinctUntilChanged()
+
+fun updateLastFmSettings(value: LastFmSettings) = dataStoreWrite {
+    dataStore.edit { settings ->
+        settings[LASTFM_SCROBBLE_ENABLED_KEY] = value.scrobbleEnabled
+        val sessionKey = value.sessionKey
+        val username = value.username
+        if (sessionKey == null) {
+            settings.remove(key = LASTFM_SESSION_KEY)
+        } else {
+            settings[LASTFM_SESSION_KEY] = sessionKey
+        }
+        if (username == null) {
+            settings.remove(key = LASTFM_USERNAME_KEY)
+        } else {
+            settings[LASTFM_USERNAME_KEY] = username
+        }
+    }
+}
+
+val ECHO_ENABLED_KEY = booleanPreferencesKey(name = "ECHO_ENABLED")
+val ECHO_DELAY_MS_KEY = intPreferencesKey(name = "ECHO_DELAY_MS")
+val ECHO_FEEDBACK_KEY = floatPreferencesKey(name = "ECHO_FEEDBACK")
+val ECHO_MIX_KEY = floatPreferencesKey(name = "ECHO_MIX")
+val REVERB_ENABLED_KEY = booleanPreferencesKey(name = "REVERB_ENABLED")
+val REVERB_PRESET_KEY = stringPreferencesKey(name = "REVERB_PRESET")
+val REVERB_MIX_KEY = floatPreferencesKey(name = "REVERB_MIX")
+
+val audioEffectsSettings: Flow<AudioEffectsSettings> = data.map { preferences ->
+    val defaults = AudioEffectsSettings()
+    AudioEffectsSettings(
+        echoEnabled = preferences[ECHO_ENABLED_KEY] ?: defaults.echoEnabled,
+        echoDelayMs = preferences[ECHO_DELAY_MS_KEY] ?: defaults.echoDelayMs,
+        echoFeedback = preferences[ECHO_FEEDBACK_KEY] ?: defaults.echoFeedback,
+        echoMix = preferences[ECHO_MIX_KEY] ?: defaults.echoMix,
+        reverbEnabled = preferences[REVERB_ENABLED_KEY] ?: defaults.reverbEnabled,
+        reverbPreset = preferences[REVERB_PRESET_KEY]
+            ?.let { name ->
+                ReverbPreset.entries.firstOrNull {
+                    it.name == name
+                }
+            }
+            ?: defaults.reverbPreset,
+        reverbMix = preferences[REVERB_MIX_KEY] ?: defaults.reverbMix,
+    ).normalized()
+}.distinctUntilChanged()
+
+fun updateAudioEffectsSettings(value: AudioEffectsSettings) = dataStoreWrite {
+    val normalized = value.normalized()
+    dataStore.edit { settings ->
+        settings[ECHO_ENABLED_KEY] = normalized.echoEnabled
+        settings[ECHO_DELAY_MS_KEY] = normalized.echoDelayMs
+        settings[ECHO_FEEDBACK_KEY] = normalized.echoFeedback
+        settings[ECHO_MIX_KEY] = normalized.echoMix
+        settings[REVERB_ENABLED_KEY] = normalized.reverbEnabled
+        settings[REVERB_PRESET_KEY] = normalized.reverbPreset.name
+        settings[REVERB_MIX_KEY] = normalized.reverbMix
+    }
+}
+
+val LT_SERVER_URL_KEY = stringPreferencesKey(name = "LT_SERVER_URL")
+val LT_DISPLAY_NAME_KEY = stringPreferencesKey(name = "LT_DISPLAY_NAME")
+val LT_AUTO_APPROVE_JOINS_KEY = booleanPreferencesKey(name = "LT_AUTO_APPROVE_JOINS")
+val LT_AUTO_APPROVE_SUGGESTIONS_KEY = booleanPreferencesKey(name = "LT_AUTO_APPROVE_SUGGESTIONS")
+val LT_BLOCKED_NAMES_KEY = stringSetPreferencesKey(name = "LT_BLOCKED_NAMES")
+
+val listenTogetherSettings: Flow<ListenTogetherSettings> = data.map { preferences ->
+    val defaults = ListenTogetherSettings()
+    ListenTogetherSettings(
+        serverUrl = preferences[LT_SERVER_URL_KEY],
+        displayName = preferences[LT_DISPLAY_NAME_KEY] ?: defaults.displayName,
+        autoApproveJoins = preferences[LT_AUTO_APPROVE_JOINS_KEY] ?: defaults.autoApproveJoins,
+        autoApproveSuggestions = preferences[LT_AUTO_APPROVE_SUGGESTIONS_KEY]
+            ?: defaults.autoApproveSuggestions,
+        blockedNames = preferences[LT_BLOCKED_NAMES_KEY] ?: defaults.blockedNames,
+    )
+}.distinctUntilChanged()
+
+fun updateListenTogetherSettings(value: ListenTogetherSettings) = dataStoreWrite {
+    dataStore.edit { settings ->
+        settings.setOrRemove(
+            key = LT_SERVER_URL_KEY,
+            value = value.serverUrl?.trim()?.takeIf { it.isNotEmpty() })
+        settings[LT_DISPLAY_NAME_KEY] =
+            value.displayName.take(n = ListenTogetherConstants.MAX_USERNAME_LENGTH)
+        settings[LT_AUTO_APPROVE_JOINS_KEY] = value.autoApproveJoins
+        settings[LT_AUTO_APPROVE_SUGGESTIONS_KEY] = value.autoApproveSuggestions
+        settings[LT_BLOCKED_NAMES_KEY] = value.blockedNames
+    }
+}
+
+private fun <T> MutablePreferences.setOrRemove(key: Preferences.Key<T>, value: T?) {
+    if (value == null) {
+        remove(key = key)
+    } else {
+        this[key] = value
     }
 }
 

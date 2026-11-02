@@ -1,6 +1,8 @@
 package com.looper.base.player.sleeptimer
 
 import androidx.annotation.OptIn
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -11,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
 
 @OptIn(UnstableApi::class)
 class SleepTimerController(
@@ -20,9 +24,11 @@ class SleepTimerController(
 ) {
 
     private companion object {
-        const val FADE_MS = 3_000L
-        const val FADE_STEPS = 30
+        const val FADE_MS = 5_000L
+        const val FADE_STEPS = 50
+        const val SILENT_TAIL_MS = 800L
         const val MAX_SLEEP_MS = 30_000L
+        const val END_OF_TRACK_POLL_MS = 1_000L
     }
 
     val state: StateFlow<SleepTimerState>
@@ -41,6 +47,14 @@ class SleepTimerController(
 
                 reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST &&
                         fadeJob?.isActive == true -> cancel()
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (state.value.mode == SleepTimerMode.END_OF_TRACK && reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                fadeJob?.cancel()
+                fadeJob = null
+                restoreVolume()
             }
         }
 
@@ -78,6 +92,7 @@ class SleepTimerController(
             SleepTimerMode.END_OF_TRACK -> {
                 player.pauseAtEndOfMediaItems = true
                 setState(SleepTimerState(mode = mode))
+                scheduleEndOfTrackFade()
             }
         }
     }
@@ -114,12 +129,30 @@ class SleepTimerController(
         countdownJob = scope.launch {
             while (isActive) {
                 val endAt = state.value.endAtMs ?: return@launch
-                val untilFade = endAt - FADE_MS - System.currentTimeMillis()
+                val untilFade = endAt - FADE_MS - SILENT_TAIL_MS - System.currentTimeMillis()
                 if (untilFade <= 0L) {
                     fadeOutAndPause()
                     return@launch
                 }
                 delay(timeMillis = untilFade.coerceAtMost(maximumValue = MAX_SLEEP_MS))
+            }
+        }
+    }
+
+    private fun scheduleEndOfTrackFade() {
+        countdownJob = scope.launch {
+            while (isActive) {
+                val duration = player.duration
+                if (player.isPlaying && duration != C.TIME_UNSET && volumeBeforeFade == null) {
+                    val speed = player.playbackParameters.speed.coerceAtLeast(minimumValue = 0.1f)
+                    val remainingMs = ((duration - player.currentPosition) / speed).toLong()
+                    if (remainingMs <= FADE_MS + SILENT_TAIL_MS) {
+                        fadeJob = scope.launch {
+                            fadeOut(durationMs = (remainingMs - SILENT_TAIL_MS).coerceAtLeast(minimumValue = 0L))
+                        }
+                    }
+                }
+                delay(timeMillis = END_OF_TRACK_POLL_MS)
             }
         }
     }
@@ -130,17 +163,24 @@ class SleepTimerController(
             return
         }
         fadeJob = scope.launch {
-            val startVolume = player.volume
-            volumeBeforeFade = startVolume
-            val stepDelay = FADE_MS / FADE_STEPS
-            for (step in 1..FADE_STEPS) {
-                player.volume = startVolume * (1f - step / FADE_STEPS.toFloat())
-                delay(timeMillis = stepDelay)
-            }
+            fadeOut(durationMs = FADE_MS)
+            delay(timeMillis = SILENT_TAIL_MS)
             fadeJob = null
             player.pause()
             finish()
         }
+    }
+
+    private suspend fun fadeOut(durationMs: Long) {
+        val startVolume = volumeBeforeFade ?: player.volume
+        volumeBeforeFade = startVolume
+        val stepDelay = (durationMs / FADE_STEPS).coerceAtLeast(minimumValue = 1L)
+        for (step in 1..FADE_STEPS) {
+            val progress = step / FADE_STEPS.toFloat()
+            player.volume = startVolume * cos(x = progress * PI.toFloat() / 2f)
+            delay(timeMillis = stepDelay)
+        }
+        player.volume = 0f
     }
 
     private fun finish() {

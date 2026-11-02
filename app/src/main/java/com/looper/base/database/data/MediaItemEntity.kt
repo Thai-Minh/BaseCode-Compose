@@ -37,4 +37,6 @@ data class MediaItemEntity(
     val favoritedAt: Long? = null,
     val addedAt: Long = System.currentTimeMillis(),
     val playCount: Int = 0,
+    val loudnessDb: Float? = null,
+    val isLive: Boolean = false,
 )

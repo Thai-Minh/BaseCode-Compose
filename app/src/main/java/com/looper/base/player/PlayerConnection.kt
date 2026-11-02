@@ -46,6 +46,9 @@ class PlayerConnection(
     val sleepTimer: StateFlow<SleepTimerState>
         field = MutableStateFlow(value = SleepTimerState.Inactive)
 
+    val audioSessionId: StateFlow<Int>
+        field = MutableStateFlow(value = C.AUDIO_SESSION_ID_UNSET)
+
     val position: Flow<Long> = flow {
         while (currentCoroutineContext().isActive) {
             emit(value = controller.value?.currentPosition ?: 0L)
@@ -62,6 +65,10 @@ class PlayerConnection(
     private val controllerListener = object : MediaController.Listener {
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
             sleepTimer.value = extras.readSleepTimerState()
+            audioSessionId.value = extras.getInt(
+                PlayerSessionCommands.EXTRA_AUDIO_SESSION_ID,
+                C.AUDIO_SESSION_ID_UNSET
+            )
         }
 
         override fun onDisconnected(controller: MediaController) {
@@ -111,6 +118,10 @@ class PlayerConnection(
         connected.addListener(playerListener)
         controller.value = connected
         sleepTimer.value = connected.sessionExtras.readSleepTimerState()
+        audioSessionId.value = connected.sessionExtras.getInt(
+            PlayerSessionCommands.EXTRA_AUDIO_SESSION_ID,
+            C.AUDIO_SESSION_ID_UNSET
+        )
         state.value = PlayerState.from(player = connected)
     }
 
@@ -164,6 +175,78 @@ class PlayerConnection(
         current.prepare()
         current.playWhenReady = playWhenReady
     }
+
+    fun playMediaItems(
+        mediaItemIds: List<String>,
+        startIndex: Int = 0,
+        startPositionMs: Long = 0L,
+    ) {
+        setMediaItems(
+            items = mediaItemIds.map(transform = ::requestItem),
+            startIndex = startIndex,
+            startPositionMs = startPositionMs,
+        )
+    }
+
+    fun addToQueue(mediaItemIds: List<String>) {
+        controller.value?.addMediaItems(mediaItemIds.map(transform = ::requestItem))
+    }
+
+    fun playNext(mediaItemIds: List<String>) {
+        val current = controller.value ?: return
+        val index = if (current.mediaItemCount == 0) {
+            0
+        } else {
+            current.currentMediaItemIndex + 1
+        }
+        current.addMediaItems(index, mediaItemIds.map(transform = ::requestItem))
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val current = controller.value ?: return
+        if (fromIndex in 0 until current.mediaItemCount && toIndex in 0 until current.mediaItemCount) {
+            current.moveMediaItem(fromIndex, toIndex)
+        }
+    }
+
+    fun moveQueueItemToNext(index: Int) {
+        val current = controller.value ?: return
+        val target =
+            if (index > current.currentMediaItemIndex) {
+                current.currentMediaItemIndex + 1
+            } else {
+                current.currentMediaItemIndex
+            }
+        moveQueueItem(fromIndex = index, toIndex = target)
+    }
+
+    fun removeQueueItems(indices: List<Int>) {
+        val current = controller.value ?: return
+        indices
+            .filter {
+                it in 0 until current.mediaItemCount
+            }
+            .sortedDescending()
+            .forEach {
+                current.removeMediaItem(it)
+            }
+    }
+
+    fun skipToQueueItem(index: Int) {
+        val current = controller.value ?: return
+        if (index in 0 until current.mediaItemCount) {
+            current.seekTo(index, 0L)
+            current.play()
+        }
+    }
+
+    fun clearQueue() {
+        controller.value?.clearMediaItems()
+    }
+
+    private fun requestItem(mediaItemId: String): MediaItem = MediaItem.Builder()
+        .setMediaId(mediaItemId)
+        .build()
 
     fun setVideoEnabled(enabled: Boolean) {
         val current = controller.value ?: return

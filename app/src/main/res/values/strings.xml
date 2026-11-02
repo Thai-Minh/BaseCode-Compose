@@ -104,4 +104,32 @@
     <string name="sleep_timer_cancelled">Sleep timer turned off</string>
     <string name="sleep_timer_not_connected">Connecting to the player…</string>
 
+    <string name="player_add_favorite">Add to favorites</string>
+    <string name="player_remove_favorite">Remove from favorites</string>
+    <string name="player_shuffle_on">Turn shuffle on</string>
+    <string name="player_shuffle_off">Turn shuffle off</string>
+    <string name="player_repeat_off">Repeat off</string>
+    <string name="player_repeat_all">Repeat all</string>
+    <string name="player_repeat_one">Repeat one</string>
+    <string name="download_channel_name">Downloads</string>
+    <string name="download_in_progress">Downloading…</string>
+    <string name="library_favorites">Favorites</string>
+    <string name="library_downloaded">Downloaded</string>
+    <string name="library_recent">Recently played</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_next">Next</string>
+    <string name="widget_playback_name">Now playing</string>
+    <string name="widget_playback_description">Control playback from your home screen</string>
+    <string name="widget_nothing_playing">Nothing playing</string>
+    <string name="widget_stats_name">Listening stats</string>
+    <string name="widget_stats_description">Your listening time and top tracks this week</string>
+    <string name="widget_stats_title">Last 7 days</string>
+    <string name="widget_listening_time">%1$d h %2$d min</string>
+    <string name="widget_stats_empty">No listening data yet</string>
+    <string name="shortcut_search">Search</string>
+    <string name="shortcut_library">Library</string>
+    <string name="shortcut_listen_together">Listen together</string>
 </resources>

@@ -6,6 +6,8 @@ enum class DownloadKind { AUDIO, VIDEO }
 
 enum class DownloadStatus { QUEUED, RUNNING, COMPLETED, FAILED, CANCELED }
 
+enum class DownloadOrigin { USER, SMART }
+
 enum class LyricsSyncLevel { NONE, LINE, WORD }
 
 enum class LyricsFormat { PLAIN, LRC, TTML, KRC, QRC, YRC, RICHSYNC_JSON, OTHER }

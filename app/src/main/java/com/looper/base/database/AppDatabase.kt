@@ -13,9 +13,13 @@ import com.looper.base.database.dao.LyricsDao
 import com.looper.base.database.dao.LyricsDecorationDao
 import com.looper.base.database.dao.LyricsProviderMissDao
 import com.looper.base.database.dao.MediaItemDao
+import com.looper.base.database.dao.PlaybackEventDao
 import com.looper.base.database.dao.PlatformDao
 import com.looper.base.database.dao.PlayHistoryDao
 import com.looper.base.database.dao.PlaylistDao
+import com.looper.base.database.dao.QueueDao
+import com.looper.base.database.dao.SearchHistoryDao
+import com.looper.base.database.dao.StreamCacheDao
 import com.looper.base.database.data.DownloadJobEntity
 import com.looper.base.database.data.DownloadedFileEntity
 import com.looper.base.database.data.EqPresetEntity
@@ -24,11 +28,15 @@ import com.looper.base.database.data.LyricsEntity
 import com.looper.base.database.data.LyricsProviderMissEntity
 import com.looper.base.database.data.MediaItemEntity
 import com.looper.base.database.data.PlatformEntity
+import com.looper.base.database.data.PlaybackEventEntity
 import com.looper.base.database.data.PlayHistoryEntity
 import com.looper.base.database.data.PlaylistEntity
 import com.looper.base.database.data.PlaylistItemEntity
+import com.looper.base.database.data.QueueItemEntity
+import com.looper.base.database.data.SearchHistoryEntity
+import com.looper.base.database.data.StreamCacheEntity
 
-private const val DATABASE_NAME = "audio_player.db"
+const val DATABASE_NAME = "audio_player.db"
 
 @Database(
     entities = [
@@ -42,6 +50,10 @@ private const val DATABASE_NAME = "audio_player.db"
         LyricsEntity::class,
         LyricsProviderMissEntity::class,
         LyricsDecorationEntity::class,
+        StreamCacheEntity::class,
+        QueueItemEntity::class,
+        PlaybackEventEntity::class,
+        SearchHistoryEntity::class,
         EqPresetEntity::class,
     ],
     version = 1,
@@ -66,6 +78,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lyricsProviderMissDao(): LyricsProviderMissDao
 
     abstract fun lyricsDecorationDao(): LyricsDecorationDao
+
+    abstract fun streamCacheDao(): StreamCacheDao
+
+    abstract fun queueDao(): QueueDao
+
+    abstract fun playbackEventDao(): PlaybackEventDao
+
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     abstract fun eqPresetDao(): EqPresetDao
 }

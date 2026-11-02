@@ -10,6 +10,7 @@ data class PlaylistEntity(
     val description: String? = null,
     val genre: String? = null,
     val isFavorite: Boolean = false,
+    val thumbnailPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
 )
