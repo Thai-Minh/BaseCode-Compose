@@ -10,6 +10,7 @@ import com.looper.base.database.data.DownloadKind
 import com.looper.base.database.data.MediaItemEntity
 import com.looper.base.database.data.MediaType
 import com.looper.base.database.data.StreamCacheEntity
+import com.looper.base.utils.SimpleHttp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,6 +49,7 @@ class StreamRepository(
         const val DEFAULT_TTL_MS = 30 * 60_000L
         const val EXPIRY_MARGIN_MS = 60_000L
         const val ID_QUERY_CHUNK = 900
+        const val ARTWORK_PROBE_LIMIT = 8
     }
 
     private val json = Json {
@@ -74,7 +76,7 @@ class StreamRepository(
             artist = resolved.artist,
             album = resolved.album,
             durationMs = resolved.durationMs,
-            thumbnailUrl = resolved.artworkUrl,
+            thumbnailUrl = reachableArtwork(candidates = resolved.artworkUrls),
             thumbnailLocalPath = existing?.thumbnailLocalPath,
             isFavorite = existing?.isFavorite ?: false,
             favoritedAt = existing?.favoritedAt,
@@ -91,6 +93,13 @@ class StreamRepository(
         saveStream(mediaItemId = entity.id, stream = resolved.stream)
         return entity
     }
+
+    private suspend fun reachableArtwork(candidates: List<String>): String? =
+        candidates
+            .take(n = ARTWORK_PROBE_LIMIT)
+            .firstOrNull {
+                SimpleHttp.isReachable(url = it)
+            } ?: candidates.firstOrNull()
 
     suspend fun ensureMediaItem(
         sourceUrl: String,

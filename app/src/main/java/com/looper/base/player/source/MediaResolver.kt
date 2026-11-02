@@ -47,7 +47,7 @@ data class ResolvedMedia(
     val title: String,
     val artist: String?,
     val album: String?,
-    val artworkUrl: String?,
+    val artworkUrls: List<String>,
     val durationMs: Long,
     val mediaType: MediaType,
     val isLive: Boolean,
@@ -114,7 +114,7 @@ class MediaResolver(
                 title = info.track ?: info.title ?: sourceUrl,
                 artist = info.artist ?: info.uploader ?: info.channel,
                 album = info.album,
-                artworkUrl = info.bestThumbnailUrl,
+                artworkUrls = artworkCandidates(info = info),
                 durationMs = info.durationMs ?: 0L,
                 mediaType = if (isVideoSource) {
                     MediaType.VIDEO
@@ -125,6 +125,15 @@ class MediaResolver(
                 stream = stream.copy(subtitles = subtitles),
             )
         }
+
+    private fun artworkCandidates(info: MediaInfo): List<String> =
+        (info.thumbnails
+            .sortedByDescending {
+                it.preference ?: Int.MIN_VALUE
+            }.map {
+                it.url
+            } + listOfNotNull(element = info.thumbnail))
+            .distinct()
 
     private fun selectSplit(
         info: MediaInfo,

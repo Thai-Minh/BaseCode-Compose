@@ -532,7 +532,7 @@ class PlaybackService : MediaLibraryService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): ConnectionResult {
-            val sessionCommands = ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+            val sessionCommands = ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .apply {
                     SleepTimerCommands.all.forEach(action = ::add)
                     PlayerSessionCommands.all.forEach(action = ::add)

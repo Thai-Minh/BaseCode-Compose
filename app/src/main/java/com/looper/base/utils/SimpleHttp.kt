@@ -15,6 +15,7 @@ data class HttpTextResponse(
 object SimpleHttp {
 
     private const val TIMEOUT_MS = 15_000
+    private const val PROBE_TIMEOUT_MS = 5_000
 
     suspend fun get(
         url: String,
@@ -26,6 +27,21 @@ object SimpleHttp {
         } finally {
             connection.disconnect()
         }
+    }
+
+    suspend fun isReachable(url: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val connection = open(url = url, headers = emptyMap()).apply {
+                requestMethod = "HEAD"
+                connectTimeout = PROBE_TIMEOUT_MS
+                readTimeout = PROBE_TIMEOUT_MS
+            }
+            try {
+                connection.responseCode in 200..299
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(defaultValue = false)
     }
 
     suspend fun postForm(
