@@ -1,5 +1,6 @@
 package com.looper.base.listentogether
 
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -10,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.looper.base.base.storage.playerSettings
 import com.looper.base.listentogether.model.ListenTogetherConstants
+import com.looper.base.listentogether.model.ListenTogetherEvent
 import com.looper.base.listentogether.model.ListenTogetherRoom
 import com.looper.base.listentogether.model.ListenTogetherState
 import com.looper.base.listentogether.model.RoomPlayback
@@ -38,21 +40,50 @@ class ListenTogetherBridge(
 
     private enum class Role { NONE, HOST, GUEST }
 
+    private enum class SeekKind { BUFFERED, NETWORK, RESUME }
+
     private companion object {
         const val HARD_SYNC_MS = 750L
-        const val SOFT_SYNC_MS = 60L
-        const val DRIFT_CHECK_INTERVAL_MS = 2_000L
+        const val PAUSED_SYNC_MS = 100L
+        const val SOFT_SYNC_START_MS = 120L
+        const val SOFT_SYNC_STOP_MS = 40L
+        const val SYNC_INTERVAL_MS = 1_000L
         const val RATE_GAIN_MS = 4_000f
         const val MAX_RATE_ADJUST = 0.05f
+        const val HARD_SEEK_COOLDOWN_MS = 3_000L
+        const val SEEK_SETTLE_MS = 1_500L
+        const val LEAD_LEARNING_GAIN = 0.8f
+        const val INITIAL_BUFFERED_LEAD_MS = 200L
+        const val INITIAL_NETWORK_LEAD_MS = 450L
+        const val INITIAL_RESUME_LEAD_MS = 500L
+        const val MAX_SEEK_LEAD_MS = 1_500L
+        const val HOST_REANCHOR_MS = 120L
+        const val HOST_STALL_HOLD_MS = 300L
+        const val SETTLE_WINDOW_MS = 4_000L
+        const val SETTLE_HARD_SYNC_MS = 250L
+        const val BUFFERED_SEEK_MARGIN_MS = 200L
+        const val HOST_REANCHOR_COOLDOWN_MS = 5_000L
     }
 
     private var role = Role.NONE
     private val trackToMediaItem = mutableMapOf<String, String>()
-    private var appliedQueue: List<String> = emptyList()
+    private var appliedTrackId: String? = null
+    private var appliedUpcoming: List<String> = emptyList()
+    private var appliedRevision = -1L
     private var loadJob: Job? = null
-    private var driftJob: Job? = null
+    private var upcomingJob: Job? = null
+    private var syncJob: Job? = null
     private var nudging = false
-    private var reportedBufferTrack: String? = null
+    private var reportedReadyTrack: String? = null
+    private var pendingSeekAt = 0L
+    private var lastHardSeekAt = 0L
+    private var bufferedLeadMs = INITIAL_BUFFERED_LEAD_MS
+    private var networkLeadMs = INITIAL_NETWORK_LEAD_MS
+    private var resumeLeadMs = INITIAL_RESUME_LEAD_MS
+    private var pendingSeekKind: SeekKind? = null
+    private var lastHostReanchorAt = 0L
+    private var lastEventAt = 0L
+    private var hostStallJob: Job? = null
 
     private val listener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -62,8 +93,14 @@ class ListenTogetherBridge(
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (role == Role.HOST) {
-                publishPlayState(playing = playWhenReady)
+            if (role == Role.HOST && !playWhenReady) {
+                publishPlayState(playing = false)
+            }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (role == Role.HOST && isPlaying && player.playWhenReady) {
+                publishPlayState(playing = true)
             }
         }
 
@@ -94,8 +131,11 @@ class ListenTogetherBridge(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_READY) {
-                session.currentRoom?.let(block = ::reportBufferIfWaiting)
+            if (role == Role.HOST) {
+                onHostPlaybackState(playbackState = playbackState)
+            }
+            if (playbackState == Player.STATE_READY && role == Role.GUEST) {
+                session.currentRoom?.let(block = ::reportReadyIfLoaded)
             }
         }
     }
@@ -105,11 +145,20 @@ class ListenTogetherBridge(
         scope.launch {
             session.state.collect(::onState)
         }
+        scope.launch {
+            session.events.collect { event ->
+                if (event is ListenTogetherEvent.SuggestionAccepted && role == Role.HOST) {
+                    insertNext(track = event.track)
+                }
+            }
+        }
     }
 
     fun release() {
+        hostStallJob?.cancel()
         loadJob?.cancel()
-        driftJob?.cancel()
+        upcomingJob?.cancel()
+        syncJob?.cancel()
         player.removeListener(listener)
         if (role == Role.GUEST) {
             restoreSpeed()
@@ -132,25 +181,47 @@ class ListenTogetherBridge(
         if (role == Role.GUEST) {
             follow(room = room)
         }
-        reportBufferIfWaiting(room = room)
     }
 
     private fun onRoleChanged(previous: Role) {
-        driftJob?.cancel()
+        syncJob?.cancel()
         loadJob?.cancel()
-        appliedQueue = emptyList()
-        reportedBufferTrack = null
+        upcomingJob?.cancel()
+        hostStallJob?.cancel()
+        lastEventAt = 0L
+        pendingSeekKind = null
+        appliedTrackId = null
+        appliedUpcoming = emptyList()
+        appliedRevision = -1L
+        reportedReadyTrack = null
+        pendingSeekAt = 0L
+        lastHardSeekAt = 0L
+        lastHostReanchorAt = 0L
         if (previous == Role.GUEST) {
             restoreSpeed()
         }
         when (role) {
-            Role.HOST -> publishSnapshot()
+            Role.HOST -> {
+                publishSnapshot()
+                startSyncLoop(check = ::checkHostTimeline)
+            }
+
             Role.GUEST -> {
                 player.playbackParameters = PlaybackParameters(1f, player.playbackParameters.pitch)
-                startDriftLoop()
+                player.shuffleModeEnabled = false
+                startSyncLoop(check = ::checkGuestDrift)
             }
 
             Role.NONE -> Unit
+        }
+    }
+
+    private fun startSyncLoop(check: () -> Unit) {
+        syncJob = scope.launch {
+            while (isActive) {
+                delay(timeMillis = SYNC_INTERVAL_MS)
+                check()
+            }
         }
     }
 
@@ -159,7 +230,7 @@ class ListenTogetherBridge(
             return
         }
         publishTrackChange()
-        if (!player.playWhenReady) {
+        if (!player.isPlaying) {
             publishPlayState(playing = false)
         }
     }
@@ -176,12 +247,13 @@ class ListenTogetherBridge(
                 queue = upcomingTracks(),
             )
         )
-        if (player.playWhenReady) {
+        if (player.isPlaying) {
             publishPlayState(playing = true)
         }
     }
 
     private fun publishPlayState(playing: Boolean) {
+        lastHostReanchorAt = SystemClock.elapsedRealtime()
         session.publish(
             action = LtPlaybackAction(
                 action = if (playing) {
@@ -192,6 +264,51 @@ class ListenTogetherBridge(
                 position = player.currentPosition.coerceAtLeast(minimumValue = 0L),
             )
         )
+    }
+
+    private fun onHostPlaybackState(playbackState: Int) {
+        hostStallJob?.cancel()
+        if (playbackState != Player.STATE_BUFFERING || !player.playWhenReady) {
+            return
+        }
+        hostStallJob = scope.launch {
+            delay(timeMillis = HOST_STALL_HOLD_MS)
+            if (role == Role.HOST && player.playbackState == Player.STATE_BUFFERING && player.playWhenReady) {
+                publishPlayState(playing = false)
+            }
+        }
+    }
+
+    private fun checkHostTimeline() {
+        val playback = session.currentRoom?.playback ?: return
+        val currentTrackId = player.currentMediaItem?.let {
+            trackInfo(item = it, durationMs = C.TIME_UNSET)?.id
+        }
+        if (currentTrackId == null || playback.track?.id != currentTrackId) {
+            return
+        }
+        if (player.playbackState != Player.STATE_READY || !player.isPlaying) {
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastHostReanchorAt < HOST_REANCHOR_COOLDOWN_MS) {
+            return
+        }
+        val actual = player.currentPosition
+        val expected = playback.positionAt(serverNow = session.clock.serverNow())
+        val gap = actual - expected
+        when {
+            !playback.isPlaying -> publishPlayState(playing = true)
+            abs(n = gap) > HOST_REANCHOR_MS -> {
+                lastHostReanchorAt = now
+                session.publish(
+                    action = LtPlaybackAction(
+                        action = LtAction.SEEK,
+                        position = actual
+                    )
+                )
+            }
+        }
     }
 
     private fun upcomingTracks(): List<LtTrackInfo> {
@@ -239,44 +356,114 @@ class ListenTogetherBridge(
         )
     }
 
+    private suspend fun insertNext(track: LtTrackInfo) {
+        val mediaItemId = runCatching {
+            mediaItemIdFor(track = track)
+        }.getOrNull() ?: return
+        val item = itemFactory.build(mediaItemId = mediaItemId, resolve = false) ?: return
+        val index = if (player.mediaItemCount == 0) {
+            0
+        } else {
+            player.currentMediaItemIndex + 1
+        }
+        player.addMediaItem(index, item)
+        if (player.mediaItemCount == 1) {
+            player.prepare()
+        }
+    }
+
     private fun follow(room: ListenTogetherRoom) {
         val playback = room.playback
         val track = playback.track ?: return
-        val queue = listOf(track.id) + playback.queue.map {
+        val upcoming = playback.queue.map {
             it.id
         }
-        if (queue != appliedQueue) {
-            appliedQueue = queue
-            reportedBufferTrack = null
+        if (track.id != appliedTrackId) {
+            appliedTrackId = track.id
+            appliedUpcoming = upcoming
+            appliedRevision = playback.revision
+            reportedReadyTrack = null
+            upcomingJob?.cancel()
             loadJob?.cancel()
             loadJob = scope.launch {
                 load(playback = playback)
             }
             return
         }
-        if (loadJob?.isActive != true) {
-            applyPlayState(playback = playback)
+        if (loadJob?.isActive == true) {
+            return
         }
+        if (upcoming != appliedUpcoming) {
+            appliedUpcoming = upcoming
+            upcomingJob?.cancel()
+            upcomingJob = scope.launch {
+                syncUpcoming(queue = playback.queue)
+            }
+        }
+        val isNewAction = playback.revision != appliedRevision
+        appliedRevision = playback.revision
+        if (isNewAction) {
+            lastEventAt = SystemClock.elapsedRealtime()
+        }
+        applyPlayState(playback = playback, force = isNewAction)
     }
 
     private suspend fun load(playback: RoomPlayback) {
-        val tracks = listOfNotNull(element = playback.track) + playback.queue
-        val ids = tracks.mapNotNull {
+        val track = playback.track ?: return
+        val currentId = runCatching {
+            mediaItemIdFor(track = track)
+        }.getOrNull() ?: return
+        val existingIndex = (0 until player.mediaItemCount).firstOrNull {
+            player.getMediaItemAt(it).mediaId == currentId
+        }
+        if (existingIndex == null) {
+            val item = itemFactory.build(mediaItemId = currentId, resolve = true) ?: return
+            val latest = session.currentRoom?.playback ?: playback
+            player.setMediaItems(listOf(item), 0, startPosition(playback = latest))
+            player.prepare()
+            markSeekPending(kind = SeekKind.NETWORK.takeIf {
+                latest.isPlaying
+            })
+        } else if (existingIndex != player.currentMediaItemIndex) {
+            val latest = session.currentRoom?.playback ?: playback
+            player.seekTo(existingIndex, startPosition(playback = latest))
+            markSeekPending(kind = SeekKind.NETWORK.takeIf {
+                latest.isPlaying
+            })
+        }
+        val latest = session.currentRoom?.playback ?: playback
+        player.playWhenReady = latest.isPlaying
+        appliedRevision = latest.revision
+        lastEventAt = SystemClock.elapsedRealtime()
+        syncUpcoming(queue = latest.queue)
+        session.currentRoom?.let(block = ::reportReadyIfLoaded)
+    }
+
+    private suspend fun syncUpcoming(queue: List<LtTrackInfo>) {
+        val ids = queue.mapNotNull {
             runCatching {
                 mediaItemIdFor(track = it)
             }.getOrNull()
         }
-        val currentId = playback.track?.let {
-            trackToMediaItem[it.id]
-        } ?: return
-        val items = itemFactory.buildAll(ids = ids, resolveId = currentId)
-        if (items.isEmpty()) {
+        val currentIndex = player.currentMediaItemIndex
+        if (player.mediaItemCount == 0 || currentIndex == C.INDEX_UNSET) {
             return
         }
-        val latest = session.currentRoom?.playback ?: playback
-        player.setMediaItems(items, 0, latest.positionAt(serverNow = session.clock.serverNow()))
-        player.prepare()
-        player.playWhenReady = latest.isPlaying
+        val existing = (currentIndex + 1 until player.mediaItemCount).map {
+            player.getMediaItemAt(it).mediaId
+        }
+        if (existing == ids && currentIndex == 0) {
+            return
+        }
+        val items = itemFactory.buildAll(ids = ids)
+        val index = player.currentMediaItemIndex
+        if (index + 1 < player.mediaItemCount) {
+            player.removeMediaItems(index + 1, player.mediaItemCount)
+        }
+        if (index > 0) {
+            player.removeMediaItems(0, index)
+        }
+        player.addMediaItems(items)
     }
 
     private suspend fun mediaItemIdFor(track: LtTrackInfo): String? {
@@ -296,42 +483,75 @@ class ListenTogetherBridge(
         return entity.id
     }
 
-    private fun applyPlayState(playback: RoomPlayback) {
-        val expectedMediaItemId = playback.track?.let { trackToMediaItem[it.id] }
-        if (expectedMediaItemId != null && player.currentMediaItem?.mediaId != expectedMediaItemId && player.mediaItemCount > 0) {
-            player.seekTo(0, playback.positionAt(serverNow = session.clock.serverNow()))
+    private fun isOnRoomTrack(playback: RoomPlayback): Boolean {
+        val expectedId = playback.track?.let {
+            trackToMediaItem[it.id]
+        } ?: return false
+        return player.currentMediaItem?.mediaId == expectedId
+    }
+
+    private fun startPosition(playback: RoomPlayback): Long {
+        val position = playback.positionAt(serverNow = session.clock.serverNow())
+        return if (playback.isPlaying) {
+            position + networkLeadMs
+        } else {
+            position
+        }
+    }
+
+    private fun applyPlayState(playback: RoomPlayback, force: Boolean) {
+        if (!isOnRoomTrack(playback = playback)) {
+            return
+        }
+        if (playback.isPlaying && !player.playWhenReady && player.playbackState == Player.STATE_READY) {
+            val now = SystemClock.elapsedRealtime()
+            resetNudge()
+            player.seekTo(playback.positionAt(serverNow = session.clock.serverNow()) + resumeLeadMs)
+            player.playWhenReady = true
+            lastHardSeekAt = now
+            markSeekPending(kind = SeekKind.RESUME)
+            return
         }
         if (player.playWhenReady != playback.isPlaying) {
             player.playWhenReady = playback.isPlaying
         }
-        correctDrift(playback = playback, allowNudge = false)
+        correctDrift(playback = playback, force = force)
     }
 
-    private fun startDriftLoop() {
-        driftJob = scope.launch {
-            while (isActive) {
-                delay(timeMillis = DRIFT_CHECK_INTERVAL_MS)
-                val playback = session.currentRoom?.playback ?: continue
-                if (loadJob?.isActive != true && player.playbackState == Player.STATE_READY) {
-                    correctDrift(playback = playback, allowNudge = playback.isPlaying)
-                }
-            }
-        }
-    }
-
-    private fun correctDrift(playback: RoomPlayback, allowNudge: Boolean) {
-        if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_BUFFERING) {
+    private fun checkGuestDrift() {
+        val playback = session.currentRoom?.playback ?: return
+        if (loadJob?.isActive == true || !isOnRoomTrack(playback = playback)) {
             return
         }
+        settlePendingSeek(playback = playback)
+        session.currentRoom?.let(block = ::reportReadyIfLoaded)
+        correctDrift(playback = playback, force = false)
+    }
+
+    private fun correctDrift(playback: RoomPlayback, force: Boolean) {
+        if (player.playbackState != Player.STATE_READY || (pendingSeekAt > 0L && !force)) {
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
         val expected = playback.positionAt(serverNow = session.clock.serverNow())
         val drift = expected - player.currentPosition
+        val magnitude = abs(n = drift)
+        val canHardSeek = force || now - lastHardSeekAt >= HARD_SEEK_COOLDOWN_MS
+        val hardThreshold = if (now - lastEventAt < SETTLE_WINDOW_MS) {
+            SETTLE_HARD_SYNC_MS
+        } else {
+            HARD_SYNC_MS
+        }
         when {
-            abs(n = drift) > HARD_SYNC_MS -> {
-                player.seekTo(expected)
+            !playback.isPlaying -> {
                 resetNudge()
+                if (magnitude > PAUSED_SYNC_MS) {
+                    hardSeek(target = expected, now = now)
+                }
             }
 
-            allowNudge && abs(n = drift) > SOFT_SYNC_MS -> {
+            magnitude > hardThreshold && canHardSeek -> hardSeek(target = expected, now = now)
+            player.isPlaying && (magnitude > SOFT_SYNC_START_MS || (nudging && magnitude > SOFT_SYNC_STOP_MS)) -> {
                 val adjust = (drift / RATE_GAIN_MS).coerceIn(
                     minimumValue = -MAX_RATE_ADJUST,
                     maximumValue = MAX_RATE_ADJUST
@@ -341,8 +561,67 @@ class ListenTogetherBridge(
                 nudging = true
             }
 
-            nudging -> resetNudge()
+            else -> resetNudge()
         }
+    }
+
+    private fun hardSeek(target: Long, now: Long) {
+        resetNudge()
+        val kind = when {
+            !player.playWhenReady -> null
+            target >= player.currentPosition && target <= player.bufferedPosition - BUFFERED_SEEK_MARGIN_MS -> SeekKind.BUFFERED
+            else -> SeekKind.NETWORK
+        }
+        val lead = when (kind) {
+            SeekKind.BUFFERED -> bufferedLeadMs
+            SeekKind.NETWORK -> networkLeadMs
+            SeekKind.RESUME -> resumeLeadMs
+            null -> 0L
+        }
+        player.seekTo((target + lead).coerceAtLeast(minimumValue = 0L))
+        lastHardSeekAt = now
+        markSeekPending(kind = kind)
+    }
+
+    private fun markSeekPending(kind: SeekKind?) {
+        pendingSeekAt = SystemClock.elapsedRealtime()
+        pendingSeekKind = kind
+    }
+
+    private fun settlePendingSeek(playback: RoomPlayback) {
+        if (pendingSeekAt == 0L || player.playbackState != Player.STATE_READY) {
+            return
+        }
+        val kind = pendingSeekKind
+        if (kind == null || !playback.isPlaying) {
+            pendingSeekAt = 0L
+            pendingSeekKind = null
+            return
+        }
+        if (!player.isPlaying || SystemClock.elapsedRealtime() - pendingSeekAt < SEEK_SETTLE_MS) {
+            return
+        }
+        val residual =
+            playback.positionAt(serverNow = session.clock.serverNow()) - player.currentPosition
+        val step = (residual * LEAD_LEARNING_GAIN).toLong()
+        when (kind) {
+            SeekKind.BUFFERED -> bufferedLeadMs = (bufferedLeadMs + step).coerceIn(
+                minimumValue = 0L,
+                maximumValue = MAX_SEEK_LEAD_MS
+            )
+
+            SeekKind.NETWORK -> networkLeadMs = (networkLeadMs + step).coerceIn(
+                minimumValue = 0L,
+                maximumValue = MAX_SEEK_LEAD_MS
+            )
+
+            SeekKind.RESUME -> resumeLeadMs = (resumeLeadMs + step).coerceIn(
+                minimumValue = 0L,
+                maximumValue = MAX_SEEK_LEAD_MS
+            )
+        }
+        pendingSeekAt = 0L
+        pendingSeekKind = null
     }
 
     private fun resetNudge() {
@@ -352,13 +631,13 @@ class ListenTogetherBridge(
         }
     }
 
-    private fun reportBufferIfWaiting(room: ListenTogetherRoom) {
+    private fun reportReadyIfLoaded(room: ListenTogetherRoom) {
         val trackId = room.playback.track?.id ?: return
-        if (room.myUserId !in room.waitingFor || reportedBufferTrack == trackId) {
+        if (reportedReadyTrack == trackId || loadJob?.isActive == true) {
             return
         }
-        if (player.playbackState == Player.STATE_READY && loadJob?.isActive != true) {
-            reportedBufferTrack = trackId
+        if (player.playbackState == Player.STATE_READY && isOnRoomTrack(playback = room.playback)) {
+            reportedReadyTrack = trackId
             session.bufferReady(trackId = trackId)
         }
     }

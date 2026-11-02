@@ -14,6 +14,10 @@ import io.ytdlp.core.model.UrlExpiry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 data class ResolvedStream(
     val url: String,
@@ -69,6 +73,9 @@ class MediaResolver(
             "srt" to MimeTypes.APPLICATION_SUBRIP,
         )
         const val MAX_SUBTITLE_TRACKS = 20
+        const val COOKIE_HEADER = "Cookie"
+        val COOKIE_ATTRIBUTES =
+            setOf("domain", "path", "expires", "max-age", "secure", "httponly", "samesite")
     }
 
     suspend fun resolve(sourceUrl: String, options: ResolveOptions): ResolvedMedia =
@@ -182,7 +189,7 @@ class MediaResolver(
         return ResolvedStream(
             url = videoUrl,
             mimeType = null,
-            headers = video.httpHeaders.ifEmpty { info.httpHeaders },
+            headers = headersFor(info = info, formats = listOf(video, audio)),
             hasVideo = true,
             formatId = "${video.formatId}+${audio.formatId}",
             expiresAt = listOfNotNull(
@@ -270,9 +277,7 @@ class MediaResolver(
             return ResolvedStream(
                 url = url,
                 mimeType = MimeTypes.APPLICATION_M3U8,
-                headers = hls.httpHeaders.ifEmpty {
-                    info.httpHeaders
-                },
+                headers = headersFor(info = info, formats = listOf(element = hls)),
                 hasVideo = true,
                 formatId = hls.formatId,
                 expiresAt = UrlExpiry.parse(url = url),
@@ -288,7 +293,7 @@ class MediaResolver(
             ?.let {
                 PlayableMedia.from(info = info, format = it)
             } ?: PlayableSelector.select(info = info, preferAudioOnly = false)
-        return progressive?.toStream()
+        return progressive?.toStream(info = info)
     }
 
     private fun selectAudio(
@@ -312,20 +317,57 @@ class MediaResolver(
                     PlayableMedia.from(info = info, format = it)
                 }
                 ?.let {
-                    return it.toStream()
+                    return it.toStream(info = info)
                 }
         }
-        return PlayableSelector.select(info = info, preferAudioOnly = true)?.toStream()
+        return PlayableSelector.select(info = info, preferAudioOnly = true)?.toStream(info = info)
     }
 
-    private fun PlayableMedia.toStream() = ResolvedStream(
+    private fun headersFor(info: MediaInfo, formats: List<Format>): Map<String, String> =
+        formats.firstOrNull()?.httpHeaders.orEmpty().ifEmpty {
+            info.httpHeaders
+        } + cookieHeader(info = info, formats = formats)
+
+    private fun cookieHeader(info: MediaInfo, formats: List<Format>): Map<String, String> {
+        val cookies = formats
+            .flatMap {
+                cookiePairs(info = info, formatId = it.formatId)
+            }.distinctBy {
+                it.substringBefore(delimiter = "=")
+            }
+        return if (cookies.isEmpty()) {
+            emptyMap()
+        } else {
+            mapOf(COOKIE_HEADER to cookies.joinToString(separator = "; "))
+        }
+    }
+
+    private fun cookiePairs(info: MediaInfo, formatId: String): List<String> {
+        val rawFormat = (info.raw["formats"] as? JsonArray)
+            ?.firstOrNull {
+                ((it as? JsonObject)?.get("format_id") as? JsonPrimitive)?.contentOrNull == formatId
+            } as? JsonObject
+        val cookies = ((rawFormat ?: info.raw)["cookies"] as? JsonPrimitive)?.contentOrNull
+            ?: return emptyList()
+        return cookies
+            .split(";")
+            .map {
+                it.trim()
+            }
+            .filter {
+                val name = it.substringBefore(delimiter = "=").trim().lowercase()
+                it.contains(char = '=') && name.isNotEmpty() && name !in COOKIE_ATTRIBUTES
+            }
+    }
+
+    private fun PlayableMedia.toStream(info: MediaInfo) = ResolvedStream(
         url = url,
         mimeType = when (streamType) {
             StreamType.HLS -> MimeTypes.APPLICATION_M3U8
             StreamType.DASH -> MimeTypes.APPLICATION_MPD
             else -> null
         },
-        headers = headers,
+        headers = headers + cookieHeader(info = info, formats = listOf(format)),
         hasVideo = format.hasVideo,
         formatId = format.formatId,
         expiresAt = expiresAtMillis,

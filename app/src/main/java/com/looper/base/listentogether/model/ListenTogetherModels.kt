@@ -104,5 +104,7 @@ sealed interface ListenTogetherEvent {
 
     data object SuggestionApproved : ListenTogetherEvent
 
+    data class SuggestionAccepted(val track: LtTrackInfo) : ListenTogetherEvent
+
     data object ServerRestarting : ListenTogetherEvent
 }

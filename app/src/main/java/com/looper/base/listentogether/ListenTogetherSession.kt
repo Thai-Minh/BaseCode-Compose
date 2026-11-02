@@ -185,11 +185,17 @@ class ListenTogetherSession(
     }
 
     fun approveSuggestion(suggestionId: String) {
+        val suggestion = currentRoom?.suggestions?.firstOrNull {
+            it.suggestionId == suggestionId
+        }
         connection.send(
             type = LtMessageType.APPROVE_SUGGESTION,
             payload = LtSuggestionTarget(suggestionId = suggestionId)
         )
         removeSuggestion(suggestionId = suggestionId)
+        suggestion?.let {
+            events.tryEmit(value = ListenTogetherEvent.SuggestionAccepted(track = it.track))
+        }
     }
 
     fun rejectSuggestion(suggestionId: String, reason: String = "") {
@@ -454,7 +460,7 @@ class ListenTogetherSession(
             LtMessageType.SUGGESTION_APPROVED -> events.tryEmit(value = ListenTogetherEvent.SuggestionApproved)
 
             LtMessageType.SUGGESTION_REJECTED -> events.tryEmit(
-                ListenTogetherEvent.SuggestionRejected(reason = frame.decode<LtSuggestionResult>().reason)
+                value = ListenTogetherEvent.SuggestionRejected(reason = frame.decode<LtSuggestionResult>().reason)
             )
 
             LtMessageType.SERVER_RESTARTING -> events.tryEmit(value = ListenTogetherEvent.ServerRestarting)
@@ -555,6 +561,7 @@ class ListenTogetherSession(
                 type = LtMessageType.APPROVE_SUGGESTION,
                 payload = LtSuggestionTarget(suggestionId = payload.suggestionId),
             )
+            events.tryEmit(value = ListenTogetherEvent.SuggestionAccepted(track = track))
             return
         }
         updateRoom { room ->
