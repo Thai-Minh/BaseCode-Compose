@@ -87,7 +87,11 @@ data class Lyrics(
             var high = lines.lastIndex
             while (low < high) {
                 val mid = (low + high + 1) ushr 1
-                if (lines[mid].startMs <= positionMs) low = mid else high = mid - 1
+                if (lines[mid].startMs <= positionMs) {
+                    low = mid
+                } else {
+                    high = mid - 1
+                }
             }
             low
         }

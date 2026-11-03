@@ -155,8 +155,7 @@ class MediaResolver(
         val decodable = videoCandidates
             .filterNot {
                 it.vcodec.orEmpty().startsWith(prefix = "av01")
-            }
-            .ifEmpty {
+            }.ifEmpty {
                 videoCandidates
             }
         val video = decodable
@@ -168,14 +167,12 @@ class MediaResolver(
                 }.thenByDescending {
                     it.tbr ?: 0.0
                 }
-            )
-            .firstOrNull()
+            ).firstOrNull()
             ?: return null
         val audio = formats
             .filter {
                 it.streamType == StreamType.PROGRESSIVE && it.isAudioOnly && it.url != null
-            }
-            .sortedWith(
+            }.sortedWith(
                 comparator = compareBy<Format> {
                     languageRank(format = it, preferred = audioLanguage)
                 }.thenBy {
@@ -227,8 +224,7 @@ class MediaResolver(
                 info.automaticCaptions.entries
                     .firstOrNull {
                         it.key.equals(other = language, ignoreCase = true)
-                    }
-                    ?.let {
+                    }?.let {
                         subtitleTrack(language = it.key, tracks = it.value, isAutomatic = true)
                     }
             }
@@ -286,11 +282,9 @@ class MediaResolver(
         val progressive = formats
             .filter {
                 it.streamType == StreamType.PROGRESSIVE && it.hasAudio && it.hasVideo
-            }
-            .maxByOrNull {
+            }.maxByOrNull {
                 it.height ?: 0
-            }
-            ?.let {
+            }?.let {
                 PlayableMedia.from(info = info, format = it)
             } ?: PlayableSelector.select(info = info, preferAudioOnly = false)
         return progressive?.toStream(info = info)
@@ -305,18 +299,15 @@ class MediaResolver(
             formats
                 .filter {
                     it.isAudioOnly && languageRank(format = it, preferred = audioLanguage) == 0
-                }
-                .sortedWith(
+                }.sortedWith(
                     comparator = compareBy<Format> {
                         codecRank(codec = it.acodec, ranking = AUDIO_CODEC_RANK)
                     }.thenByDescending {
                         it.abr ?: it.tbr ?: 0.0
                     }
-                )
-                .firstNotNullOfOrNull {
+                ).firstNotNullOfOrNull {
                     PlayableMedia.from(info = info, format = it)
-                }
-                ?.let {
+                }?.let {
                     return it.toStream(info = info)
                 }
         }
@@ -353,8 +344,7 @@ class MediaResolver(
             .split(";")
             .map {
                 it.trim()
-            }
-            .filter {
+            }.filter {
                 val name = it.substringBefore(delimiter = "=").trim().lowercase()
                 it.contains(char = '=') && name.isNotEmpty() && name !in COOKIE_ATTRIBUTES
             }
