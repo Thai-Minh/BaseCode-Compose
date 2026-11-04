@@ -1,4 +1,4 @@
-package com.looper.ads.ui
+package com.looper.ads
 
 import android.app.Activity
 import android.content.Context
@@ -9,7 +9,6 @@ import com.google.android.ump.FormError
 import com.google.android.ump.UserMessagingPlatform
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * App-facing Google UMP consent flow.

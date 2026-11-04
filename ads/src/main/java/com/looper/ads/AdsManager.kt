@@ -75,8 +75,6 @@ object AdsManager : DefaultLifecycleObserver {
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) {
 
-                Log.d("MTHAI", "onActivityResumed: $activity")
-
                 val activityName = activity::class.java.simpleName
 
                 if (!myActivity.contains(activityName)) {

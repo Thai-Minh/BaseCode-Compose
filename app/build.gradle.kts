@@ -126,6 +126,7 @@ dependencies {
 
     // for ad-sdk
     implementation(project(":ads"))
+    implementation(libs.android.adsdk)
 
     // coil
     implementation(libs.coil)

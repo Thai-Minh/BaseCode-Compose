@@ -24,7 +24,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.looper.ads.ui.AppConsentManager
+import com.looper.ads.AppConsentManager
 import com.looper.base.base.ui.BaseActivity
 import com.looper.base.iap.ui.MainIAPActivity
 import com.looper.base.screen.MyApp

@@ -6,26 +6,31 @@ import androidx.lifecycle.lifecycleScope
 import androidx.multidex.MultiDexApplication
 import com.looper.ads.AdjustManager
 import com.looper.ads.AdsDataPreference
-import com.looper.ads.AdsInitializationError
 import com.looper.ads.bindAdEligibility
 import com.looper.ads.initAd
+import com.looper.base.base.storage.firstOpen
 import com.looper.base.di.appModule
+import com.looper.base.di.iapModule
 import com.looper.base.di.networkModule
 import com.looper.base.di.notificationModule
 import com.looper.base.di.repositoryModule
 import com.looper.base.di.viewModelModule
-import com.looper.base.iap.data.PlayIapCatalog
-import com.looper.iap.BillingManagerImpl
-import com.looper.iap.OrigoIapSdk
-import com.looper.iap.model.IapConfig
-import com.looper.iap.model.TrustPlayPurchaseVerifier
+import com.looper.base.iap.IAPOwner
 import com.looper.base.utils.firebase.FRRemoteConfig
 import com.looper.base.utils.isNetworkAvailable
-import kotlinx.coroutines.flow.filterNotNull
+import com.looper.base.utils.tracking_event.TrackEvent
+import com.zenith.adsdk.MediationAd
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 
 class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
@@ -33,76 +38,120 @@ class MyApplication : MultiDexApplication(), DefaultLifecycleObserver {
         lateinit var instance: MyApplication
             private set
 
-        var isAppInForeground: Boolean = false
     }
 
-    lateinit var iapManager: BillingManagerImpl
-        private set
+    private val applicationScope =
+        CoroutineScope(context = SupervisorJob() + Dispatchers.Main.immediate)
+
+    @Volatile
+    private var hasStartedOnlineInitialization = false
 
     override fun onCreate() {
         super<MultiDexApplication>.onCreate()
 
         instance = this
 
-        com.looper.base.tracking.AdRevenueAnalytics.register(application = this)
-        AdjustManager.initAdjustSDK(application = this, isDebug = BuildConfig.DEBUG)
+        AdjustManager.apply {
+            initAdjustSDK(application = this@MyApplication, isDebug = BuildConfig.DEBUG)
+            setPaidEventListener(TrackEvent::logAdImpressionTaichi)
+        }
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         AdsDataPreference.init(this)
 
         FRRemoteConfig.fetchAllConfigs()
-        // TEST ONLY: TrustPlayPurchaseVerifier trusts Play client results. Replace with a
-        // server-backed PurchaseVerifier before shipping or granting valuable entitlements.
-        iapManager = OrigoIapSdk.create(
-            context = this,
-            config = IapConfig(
-                catalog = PlayIapCatalog.catalog,
-                purchaseVerifier = TrustPlayPurchaseVerifier,
-            ),
-        )
-
-        bindAdEligibility(
-            scope = ProcessLifecycleOwner.get().lifecycleScope,
-            remoteAllowsAds = FRRemoteConfig.fetchShowAdsWhenReview,
-            isPremium = iapManager.isPremiumFlow,
-        )
 
         startKoin {
             androidLogger()
             androidContext(this@MyApplication)
-            modules(appModule, networkModule, repositoryModule, viewModelModule, notificationModule)
+            modules(
+                appModule,
+                networkModule,
+                repositoryModule,
+                viewModelModule,
+                notificationModule,
+                iapModule(applicationScope = applicationScope)
+            )
         }
 
-        ProcessLifecycleOwner.get().lifecycleScope.launch {
-            FRRemoteConfig.fetchShowAdsWhenReview
-                .filterNotNull()
-                .first()
+        val iapOwner = GlobalContext.get().get<IAPOwner>()
+        iapOwner.start()
 
-            initAds()
+        bindAdEligibility(
+            scope = ProcessLifecycleOwner.get().lifecycleScope,
+            remoteAllowsAds = FRRemoteConfig.fetchShowAdsWhenReview,
+            isPremium = iapOwner.isPremium,
+        )
+    }
+
+    @Synchronized
+    fun startOnlineInitialization() {
+        if (hasStartedOnlineInitialization) {
+            return
+        }
+
+        hasStartedOnlineInitialization = true
+
+        FRRemoteConfig.fetchAllConfigs()
+
+        applicationScope.launch {
+            val owner = GlobalContext.get().get<IAPOwner>()
+
+            val decision = withTimeoutOrNull(timeMillis = 10_000L) {
+                combine(
+                    flow = owner.isPremium,
+                    flow2 = FRRemoteConfig.fetchShowAdsWhenReview,
+                ) { isPremium, review ->
+                    isPremium to review
+                }.first { (_, review) ->
+                    review != null
+                }
+            }
+
+            initAds(isShowAdWhenReview = decision?.second == true && !decision.first)
+        }
+
+        applicationScope.launch(context = Dispatchers.IO) {
+            val isFirstOpen = firstOpen.firstOrNull() ?: true
+            if (isFirstOpen) {
+                TrackEvent.logFirstOpen()
+            }
         }
     }
 
-    private fun initAds() {
-        val remoteConfigKey = BuildConfig.REMOTE_CONFIG_ADS_KEY
+    private fun initAds(
+        isShowAdWhenReview: Boolean,
+        useCloudXMediation: Boolean = false
+    ) {
+        val owner = GlobalContext.get().get<IAPOwner>()
+        val isSupportAd = isShowAdWhenReview && !owner.isPremium.value
 
-        // init & fetch config mediation from Remote Config
-        initAd(
-            fetchFirstRemoteConfig = {
-                FRRemoteConfig.fetchAdsRemoteConfig(key = remoteConfigKey)
-            },
-            fetcher = { callback ->
-                FRRemoteConfig.fetchAdsRemoteConfig(
-                    key = remoteConfigKey,
-                    onComplete = callback
-                )
-            },
-            onNetworkInitializationSuccess = {
-                FRRemoteConfig.updateStateRemoteConfigAd(value = true)
-            },
-            onNetworkInitializationFailed = { error ->
-                if (error != AdsInitializationError.JSON_CONFIG_NULL || !this.isNetworkAvailable()) {
+        if (isSupportAd) {
+            val remoteConfigKey = BuildConfig.REMOTE_CONFIG_ADS_KEY
+
+            // init & fetch config mediation from Remote Config
+            initAd(
+                fetchFirstRemoteConfig = {
+                    FRRemoteConfig.fetchAdsRemoteConfig(key = remoteConfigKey)
+                },
+                fetcher = { callback ->
+                    FRRemoteConfig.fetchAdsRemoteConfig(
+                        key = remoteConfigKey,
+                        onComplete = callback
+                    )
+                },
+                onNetworkInitializationSuccess = {
                     FRRemoteConfig.updateStateRemoteConfigAd(value = true)
+                },
+                onNetworkInitializationFailed = { error ->
+                    if (error != MediationAd.InitializationError.JSON_CONFIG_NULL || !this.isNetworkAvailable()) {
+                        FRRemoteConfig.updateStateRemoteConfigAd(value = true)
+                    }
                 }
-            }
-        )
+            )
+        } else {
+            FRRemoteConfig.updateStateRemoteConfigAd(value = true)
+        }
     }
 }
