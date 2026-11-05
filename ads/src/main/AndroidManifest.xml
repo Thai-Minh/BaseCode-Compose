@@ -4,7 +4,10 @@
 
     <application>
         <meta-data
-            android:name="com.zenith.adsdk.USE_REMOTE_CONFIG"
+            android:name="com.zenith.adsdk.USE_CONFIG_JSON_BY_FIREBASE"
+            android:value="true"/>
+        <meta-data
+            android:name="com.zenith.adsdk.AUTO_PREPARE"
             android:value="true"/>
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"

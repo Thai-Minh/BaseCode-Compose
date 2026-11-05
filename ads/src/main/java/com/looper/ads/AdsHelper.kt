@@ -10,8 +10,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val adEligibility = AdEligibilityState()
 val isSupportAdState: StateFlow<Boolean> get() = adEligibility.isEligible
@@ -35,8 +37,9 @@ fun Application.initAd(
     fetchFirstRemoteConfig: suspend () -> String?,
     fetcher: (callback: (String?) -> Unit) -> Unit,
     onNetworkInitializationSuccess: () -> Unit,
-    onNetworkInitializationFailed: (error: AdsInitializationError) -> Unit
+    onNetworkInitializationFailed: (error: MediationAd.InitializationError?) -> Unit
 ) {
+    AdsManager.isWelcomeBackDialogEnabled = false
     AdsManager.init(this)
 
     initRemoteConfigFetcher(
@@ -79,38 +82,33 @@ private fun Application.initRemoteConfigFetcher(
     fetchFirstRemoteConfig: suspend () -> String?,
     fetcher: (callback: (String?) -> Unit) -> Unit,
     onNetworkInitializationSuccess: () -> Unit,
-    onNetworkInitializationFailed: (error: AdsInitializationError) -> Unit
+    onNetworkInitializationFailed: (error: MediationAd.InitializationError?) -> Unit
 ) {
-    MediationAd.create(this@initRemoteConfigFetcher, object : MediationAd.Listener {
-        override fun onInitializeSuccess() {
-//            AdjustManager.trackEvent(ADJUST_APPLOVIN)
-            onNetworkInitializationSuccess()
-        }
-
-        override fun onInitializeFail(error: MediationAd.InitializationError?) {
-            val initializationError = when (error) {
-                MediationAd.InitializationError.JSON_CONFIG_NULL -> {
-                    AdsInitializationError.JSON_CONFIG_NULL
-                }
-
-                else -> AdsInitializationError.UNKNOWN
-            }
-            onNetworkInitializationFailed(initializationError)
-        }
-
-        override fun onNetworkInitializationComplete(
-            networkName: String?,
-            success: Boolean,
-            error: String?
-        ) {
-
-        }
-    })
-
-    ProcessLifecycleOwner.get().lifecycleScope.launch(context = Dispatchers.IO) {
+    CoroutineScope(Dispatchers.IO).launch {
         val json = fetchFirstRemoteConfig()
 
         AdsManager.checkRemoteConfig(jsonString = json)
+
+        withContext(Dispatchers.Main) {
+            MediationAd.initializeWithJsonConfig(json, object : MediationAd.Listener {
+                override fun onInitializeSuccess() {
+                    AdjustManager.trackEvent(ADJUST_APPLOVIN)
+                    onNetworkInitializationSuccess()
+                }
+
+                override fun onInitializeFail(error: MediationAd.InitializationError?) {
+                    onNetworkInitializationFailed(error)
+                }
+
+                override fun onNetworkInitializationComplete(
+                    networkName: String?,
+                    success: Boolean,
+                    error: String?
+                ) {
+
+                }
+            })
+        }
 
         if (json != null) MediationAd.reloadJsonConfigWithFirebase(json)
 

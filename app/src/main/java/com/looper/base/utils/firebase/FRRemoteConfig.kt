@@ -54,6 +54,7 @@ object FRRemoteConfig {
     var useNativeAdType = true
         private set
 
+    var onboardingContentAutoNext = NativeOnboardingFullAutoNextConfig()
     var nativeOnboardingFull1AutoNext = NativeOnboardingFullAutoNextConfig()
         private set
     var nativeOnboardingFull2AutoNext = NativeOnboardingFullAutoNextConfig()
@@ -77,12 +78,6 @@ object FRRemoteConfig {
                 fetchLanguageOnboardingConfig(remoteConfig = remoteConfig)
                 fetchOnboardingConfig(remoteConfig = remoteConfig)
                 fetchShowAdAndIAPWhenReview(remoteConfig = remoteConfig)
-
-                if (activated) {
-                    fetchIapConfig(remoteConfig)
-//                    fetchAppLaunchFlow(remoteConfig)
-//                    fetchIAAdsConfig(remoteConfig)
-                }
 
                 fetchAll.tryEmit(true)
             } catch (e: Exception) {
@@ -120,38 +115,12 @@ object FRRemoteConfig {
         }
     }
 
-    private fun fetchConfigOptionsAds(remoteConfig: FirebaseRemoteConfig) {
-        val jsonConfig = remoteConfig.getString("config_options_ads")
+    suspend fun readActivatedSubscriptionPayload(): String {
+        fetchAllConfigs()
+        val sharedJob = synchronized(this) { job }
+        sharedJob?.join()
 
-        try {
-            JSONObject(jsonConfig)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun fetchIapConfig(remoteConfig: FirebaseRemoteConfig) {
-//        val jsonConfig = remoteConfig.getString("iap_config")
-//
-//        if (jsonConfig.isBlank()) {
-//            return
-//        }
-//
-//        try {
-//            val jsonObject = JSONObject(jsonConfig)
-//
-//            val bestOffer = jsonObject.optString("bestOffer", "")
-//            val sale = jsonObject.optString("sale", "year")
-//            val offersArray = jsonObject.optJSONArray("offersPaywall")
-//            val offersJsonString = offersArray?.toString() ?: "[]"
-//
-//            updateBestOffer(bestOffer)
-//            updateSale(sale)
-//            updateOffersPaywall(offersJsonString)
-//
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//        }
+        return Firebase.remoteConfig.getString("iap_subs_id")
     }
 
     private fun fetchIntersSplashConfig(remoteConfig: FirebaseRemoteConfig) {
@@ -199,6 +168,12 @@ object FRRemoteConfig {
 
     private fun fetchOnboardingConfig(remoteConfig: FirebaseRemoteConfig) {
         val jsonConfig = remoteConfig.getString("onboarding_config")
+
+        useNativeAdType = true
+        onboardingContentAutoNext = NativeOnboardingFullAutoNextConfig()
+        nativeOnboardingFull1AutoNext = NativeOnboardingFullAutoNextConfig()
+        nativeOnboardingFull2AutoNext = NativeOnboardingFullAutoNextConfig()
+
         if (jsonConfig.isBlank()) return
 
         runCatching {
@@ -209,59 +184,29 @@ object FRRemoteConfig {
             fun parsePlacement(key: String): NativeOnboardingFullAutoNextConfig {
                 val placement = jsonObject.optJSONObject(key)
                     ?: return NativeOnboardingFullAutoNextConfig()
+                val enabled = placement.opt("enable_auto_next") as? Boolean ?: false
+
+                val delayMs = when (val delay = placement.opt("auto_next_ms")) {
+                    is Int -> delay.toLong()
+                    is Long -> delay
+                    else -> -1L
+                }
 
                 return NativeOnboardingFullAutoNextConfig(
-                    enableAutoNext = placement.optBoolean("enable_auto_next", false),
-                    autoNextMs = placement.optLong("auto_next_ms", -1L),
+                    enableAutoNext = enabled,
+                    autoNextMs = delayMs,
                 )
             }
 
-            nativeOnboardingFull1AutoNext = parsePlacement("native_onboarding_full_1")
-            nativeOnboardingFull2AutoNext = parsePlacement("native_onboarding_full_2")
-        }.onFailure {
+            onboardingContentAutoNext = parsePlacement(key = "onboarding_content")
+            nativeOnboardingFull1AutoNext = parsePlacement(key = "native_onboarding_full_1")
+            nativeOnboardingFull2AutoNext = parsePlacement(key = "native_onboarding_full_2")
+        }.onFailure { exception ->
             useNativeAdType = true
+            onboardingContentAutoNext = NativeOnboardingFullAutoNextConfig()
             nativeOnboardingFull1AutoNext = NativeOnboardingFullAutoNextConfig()
             nativeOnboardingFull2AutoNext = NativeOnboardingFullAutoNextConfig()
-        }
-    }
-
-    private fun fetchAppLaunchFlow(remoteConfig: FirebaseRemoteConfig) {
-        val jsonConfig = remoteConfig.getString("app_launch_flow")
-        if (jsonConfig.isBlank()) return
-
-        try {
-            val jsonObject = JSONObject(jsonConfig)
-
-            jsonObject.optBoolean("from_splash_to_lfo", true)
-
-            jsonObject.optBoolean("from_pw_to_lfo", true)
-
-
-//            AppDataPreference.fromSplashToLfo = fromSplashToLfo
-//            AppDataPreference.fromPwToLfo = fromPwToLfo
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun fetchIAAdsConfig(remoteConfig: FirebaseRemoteConfig) {
-        val jsonConfig = remoteConfig.getString("iaa_config")
-        if (jsonConfig.isBlank()) return
-
-        try {
-            val jsonObject = JSONObject(jsonConfig)
-
-            jsonObject.optBoolean("useCollapsibleBanner", false)
-            jsonObject.optBoolean("enable_inter_language_onboarding", false)
-            jsonObject.optBoolean("enable_inter_iap_onboarding", false)
-
-//            AppDataPreference.useCollapsibleBanner = useCollapsibleBanner
-//            AppDataPreference.enableInterLanguageOnboarding = enableInterLanguageOnboarding
-//            AppDataPreference.enableInterIAPOnboarding = enableInterIAPOnboarding
-
-        } catch (e: Exception) {
-            e.printStackTrace()
+            exception.printStackTrace()
         }
     }
 

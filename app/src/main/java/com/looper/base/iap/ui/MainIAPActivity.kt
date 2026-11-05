@@ -4,8 +4,20 @@
 
 package com.looper.base.iap.ui
 
+import android.app.Activity.RESULT_OK
+import android.content.Context
 import com.looper.base.iap.data.MainIAPState
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.addCallback
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,14 +31,19 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults.contentPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -35,62 +52,77 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.looper.base.MyApplication
 import com.looper.base.base.ui.BaseActivity
+import com.looper.base.base.ui.BaseActivity.Companion.IAP_SUCCESS
 import com.looper.base.databinding.ActivityMainIapBinding
+import com.looper.base.iap.utils.finishActivityFadeOutAnimation
+import com.looper.base.iap.utils.setStartActivityFadeInAnimation
+import com.looper.base.screen.AppStateProvider
 import com.looper.base.ui.theme.BaseCodeComposeTheme
 import com.looper.iap.model.BillingState
 import com.looper.iap.model.ProductDetailItem
 import com.looper.iap.model.StartIAPType
 import kotlinx.coroutines.launch
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import java.util.Locale
+import kotlin.getValue
+import kotlin.jvm.java
 
 /** Hosts the SDK test UI while the application owns the shared billing manager. */
-class MainIAPActivity : BaseActivity<ActivityMainIapBinding>() {
-    private lateinit var model: MainIAPViewModel
+class MainIAPActivity : AppCompatActivity() {
+    private val viewModel: MainIAPViewModel by viewModel()
+    private var startIapType = StartIAPType.Onboarding
 
-    override fun createBinding(): ActivityMainIapBinding {
-        return ActivityMainIapBinding.inflate(layoutInflater)
+    override fun attachBaseContext(newBase: Context?) {
+        val languageCode = getLanguageCodeFromIntent(intent)
+
+        if (newBase == null || languageCode == null) {
+            super.attachBaseContext(newBase)
+        } else {
+            super.attachBaseContext(updateLocale(newBase, languageCode))
+        }
     }
 
-    override fun initView() {
-        // Also covers a plain finish without a purchase, including after recreation.
-        setResult(RESULT_OK, Intent().putExtra(IAP_SUCCESS, false))
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-        val manager = (application as MyApplication).iapManager
-        model = ViewModelProvider(
-            this,
-            object : ViewModelProvider.Factory {
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return modelClass.cast(MainIAPViewModel(manager = manager))
-                        ?: error(message = "Unexpected ViewModel")
-                }
-            },
-        )[MainIAPViewModel::class.java]
-
-        // BaseActivity reattaches its root: keep composition until Activity destruction.
-        binding.composeView.setViewCompositionStrategy(
-            strategy = ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
-        binding.composeView.setContent {
-            BaseCodeComposeTheme {
-                val state by model.state.collectAsStateWithLifecycle()
 
-                // BaseActivity forwards (but does not consume/pad) insets. Compose owns
-                // them here; Scaffold passes safe system-bar padding to the lazy list.
-                Scaffold { contentPadding ->
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        windowInsetsController.isAppearanceLightStatusBars = false
+
+        initStartIapType()
+
+        onBackPressedDispatcher.addCallback(this) {
+            finishWithIAPState(isSuccess = false)
+        }
+
+        setContent {
+            AppStateProvider {
+                val state by viewModel.state.collectAsStateWithLifecycle()
+
+                LaunchedEffect(state.isPurchaseSuccessful) {
+                    if (state.isPurchaseSuccessful) {
+                        finishWithIAPState(isSuccess = true)
+                    }
+                }
+
+                BaseCodeComposeTheme {
                     IapTestContent(
                         state = state,
-                        contentPadding = contentPadding,
                         onBuy = { item ->
-                            if (model.requestPurchase(item = item)) {
-                                manager.buy(
-                                    activity = this@MainIAPActivity,
-                                    startBuy = StartIAPType.Account,
-                                    item = item,
-                                )
-                            }
+                            viewModel.buy(
+                                activity = this@MainIAPActivity,
+                                startBuy = startIapType,
+                            )
                         },
-                        onRestore = model::restore,
-                        onReconnect = model::reconnect,
-                        onDismiss = model::dismiss,
+                        onRestore = viewModel::restore,
+                        onReconnect = viewModel::reconnect,
+                        onDismiss = viewModel::dismiss,
                         onClose = { finishWithIAPState(isSuccess = false) },
                     )
                 }
@@ -98,27 +130,65 @@ class MainIAPActivity : BaseActivity<ActivityMainIapBinding>() {
         }
     }
 
-    override fun addObserver() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(state = Lifecycle.State.STARTED) {
-                model.state.collect { state ->
-                    if (state.isPurchaseSuccessful && !isFinishing) {
-                        finishWithIAPState(isSuccess = true)
-                    }
-                }
-            }
+    fun finishWithIAPState(isSuccess: Boolean) {
+        if (isFinishing) {
+            return
         }
+
+        val data = Intent().apply { putExtra(IAP_SUCCESS, isSuccess) }
+        setResult(RESULT_OK, data)
+        finishActivityFadeOutAnimation()
     }
 
-    override fun handleOnBackPressed() {
-        finishWithIAPState(isSuccess = false)
+    private fun initStartIapType() {
+        startIapType = intent?.getStringExtra(EXTRA_START_IAP_TYPE)
+            ?.let { runCatching { StartIAPType.valueOf(it) }.getOrNull() }
+            ?: StartIAPType.Onboarding
+    }
+
+    private fun getLanguageCodeFromIntent(intent: Intent?): String? {
+        return intent?.getStringExtra(LANGUAGE_CODE_KEY)
+    }
+
+    private fun updateLocale(context: Context, language: String): Context {
+        val locale = Locale(language)
+        Locale.setDefault(locale)
+
+        val configuration: Configuration = context.resources.configuration
+        configuration.setLocale(locale)
+        configuration.setLayoutDirection(locale)
+
+        return context.createConfigurationContext(configuration)
+    }
+
+    companion object {
+        private const val EXTRA_START_IAP_TYPE = "EXTRA_START_IAP_TYPE"
+        private const val LANGUAGE_CODE_KEY = "language_code_key"
+
+        fun start(
+            activity: ComponentActivity,
+            launcher: ActivityResultLauncher<Intent>,
+            type: StartIAPType,
+            languageCode: String? = null,
+        ) {
+            val intent = Intent(activity, MainIAPActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra(EXTRA_START_IAP_TYPE, type.name)
+
+                languageCode?.let {
+                    putExtra(LANGUAGE_CODE_KEY, it)
+                }
+            }
+
+            launcher.launch(intent)
+            activity.setStartActivityFadeInAnimation()
+        }
     }
 }
 
 @Composable
 fun IapTestContent(
     state: MainIAPState,
-    contentPadding: PaddingValues,
     onBuy: (ProductDetailItem) -> Unit,
     onRestore: () -> Unit,
     onReconnect: () -> Unit,
@@ -129,7 +199,6 @@ fun IapTestContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(all = 24.dp),
-        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {

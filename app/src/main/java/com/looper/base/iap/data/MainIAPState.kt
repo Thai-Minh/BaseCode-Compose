@@ -14,7 +14,16 @@ data class MainIAPState(
     val restoring: Boolean = false,
     val message: String? = null,
     val isPurchaseSuccessful: Boolean = false,
+    val useTrial: Boolean = true
 ) {
+    val selectedItem: ProductDetailItem?
+        get() = if (useTrial) {
+            products.firstOrNull()
+        } else {
+            products.firstOrNull { item -> item.offerKind == com.looper.iap.model.OfferKind.BASE }
+                ?: products.firstOrNull()
+        }
+
     val busy: Boolean
         get() = (pending != null || restoring || billing == BillingState.Loading)
 
