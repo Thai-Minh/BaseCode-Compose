@@ -24,6 +24,20 @@
         </intent>
     </queries>
 
+    <queries>
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.trill" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.zing.mp3" />
+        <package android:name="com.soundcloud.android" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.facebook.lite" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.bandcamp.android" />
+        <package android:name="com.dailymotion.dailymotion" />
+    </queries>
+
     <application
         android:name=".MyApplication"
         android:allowBackup="true"

@@ -16,6 +16,7 @@ import com.looper.base.player.PlayerConnection
 import com.looper.base.player.audio.AudioOutputRouter
 import com.looper.base.player.pip.PipManager
 import com.looper.base.player.source.PlayerCacheFactory
+import com.looper.base.screen.home.data.SocialAppLauncher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -58,6 +59,10 @@ val appModule = module {
 
     single {
         PipManager()
+    }
+
+    single {
+        SocialAppLauncher(context = androidContext())
     }
 
     single {

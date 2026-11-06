@@ -3,6 +3,7 @@ package com.looper.base.player
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -10,6 +11,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -43,6 +45,9 @@ class PlayerConnection(
     val state: StateFlow<PlayerState>
         field = MutableStateFlow(value = PlayerState())
 
+    val queue: StateFlow<PlayerQueue>
+        field = MutableStateFlow(value = PlayerQueue())
+
     val sleepTimer: StateFlow<SleepTimerState>
         field = MutableStateFlow(value = SleepTimerState.Inactive)
 
@@ -59,10 +64,19 @@ class PlayerConnection(
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             state.value = PlayerState.from(player = player)
+            if (events.containsAny(
+                    Player.EVENT_TIMELINE_CHANGED,
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED,
+                )
+            ) {
+                queue.value = PlayerQueue.from(player = player)
+            }
         }
     }
 
     private val controllerListener = object : MediaController.Listener {
+        @OptIn(UnstableApi::class)
         override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
             sleepTimer.value = extras.readSleepTimerState()
             audioSessionId.value = extras.getInt(
@@ -114,6 +128,7 @@ class PlayerConnection(
         clearController()
     }
 
+    @OptIn(UnstableApi::class)
     private fun onConnected(connected: MediaController) {
         connected.addListener(playerListener)
         controller.value = connected
@@ -123,6 +138,7 @@ class PlayerConnection(
             C.AUDIO_SESSION_ID_UNSET
         )
         state.value = PlayerState.from(player = connected)
+        queue.value = PlayerQueue.from(player = connected)
     }
 
     private fun clearController() {
@@ -162,6 +178,18 @@ class PlayerConnection(
 
     fun skipToPrevious() {
         controller.value?.seekToPreviousMediaItem()
+    }
+
+    fun toggleShuffle() {
+        sendCustomCommand(action = PlayerSessionCommands.ACTION_TOGGLE_SHUFFLE)
+    }
+
+    fun cycleRepeat() {
+        sendCustomCommand(action = PlayerSessionCommands.ACTION_CYCLE_REPEAT)
+    }
+
+    fun toggleFavorite() {
+        sendCustomCommand(action = PlayerSessionCommands.ACTION_TOGGLE_FAVORITE)
     }
 
     fun setMediaItems(

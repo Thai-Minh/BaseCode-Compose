@@ -24,7 +24,7 @@ class DownloadExporter(
 ) {
 
     private companion object {
-        val INVALID_NAME_CHARS = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
+        val INVALID_NAME_CHARS = Regex(pattern = "[\\\\/:*?\"<>|\\p{Cntrl}]")
         const val MAX_NAME_LENGTH = 120
     }
 

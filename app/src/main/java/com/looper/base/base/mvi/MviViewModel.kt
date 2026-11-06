@@ -19,7 +19,7 @@ abstract class MviViewModel<S : UiState, I : UiIntent, E : UiEffect>(
 ) : ViewModel() {
 
     val state: StateFlow<S>
-        field = MutableStateFlow(initialState)
+        field = MutableStateFlow(value = initialState)
 
     private val effectChannel = Channel<E>(Channel.BUFFERED)
 

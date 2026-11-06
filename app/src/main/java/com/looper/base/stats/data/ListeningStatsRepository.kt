@@ -16,6 +16,7 @@ import com.looper.base.stats.model.StatsRange
 import com.looper.base.stats.model.TrackStat
 import com.looper.base.stats.model.WrappedSummary
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.Instant
@@ -39,6 +40,9 @@ class ListeningStatsRepository(
 
     private val zone: ZoneId
         get() = ZoneId.systemDefault()
+
+    fun observeTotalListenedMs(): Flow<Long> =
+        playbackEventDao.observeTotalListened(from = 0L, to = Long.MAX_VALUE)
 
     fun range(period: StatsPeriod, now: Long = System.currentTimeMillis()): StatsRange {
         val from = when (val days = period.days) {

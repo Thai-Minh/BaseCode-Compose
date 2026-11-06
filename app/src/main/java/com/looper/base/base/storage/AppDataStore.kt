@@ -30,6 +30,7 @@ import com.looper.base.lastfm.model.LastFmSettings
 import com.looper.base.listentogether.model.ListenTogetherConstants
 import com.looper.base.listentogether.model.ListenTogetherSettings
 import com.looper.base.lyrics.model.LyricsSettings
+import com.looper.base.player.model.AudioQuality
 import com.looper.base.player.model.PlaybackSnapshot
 import com.looper.base.player.model.PlayerSettings
 import kotlinx.coroutines.CoroutineScope
@@ -194,6 +195,7 @@ val PLAYER_VIDEO_MAX_HEIGHT_KEY = intPreferencesKey(name = "PLAYER_VIDEO_MAX_HEI
 val PLAYER_AUDIO_LANGUAGE_KEY = stringPreferencesKey(name = "PLAYER_AUDIO_LANGUAGE")
 val PLAYER_SUBTITLE_LANGUAGE_KEY = stringPreferencesKey(name = "PLAYER_SUBTITLE_LANGUAGE")
 val PLAYER_STOP_ON_TASK_REMOVED_KEY = booleanPreferencesKey(name = "PLAYER_STOP_ON_TASK_REMOVED")
+val PLAYER_AUDIO_QUALITY_KEY = stringPreferencesKey(name = "PLAYER_AUDIO_QUALITY")
 
 val playerSettings: Flow<PlayerSettings> = data.map { preferences ->
     val defaults = PlayerSettings()
@@ -208,6 +210,11 @@ val playerSettings: Flow<PlayerSettings> = data.map { preferences ->
         subtitleLanguage = preferences[PLAYER_SUBTITLE_LANGUAGE_KEY],
         stopOnTaskRemoved = preferences[PLAYER_STOP_ON_TASK_REMOVED_KEY]
             ?: defaults.stopOnTaskRemoved,
+        audioQuality = preferences[PLAYER_AUDIO_QUALITY_KEY]?.let { name ->
+            AudioQuality.entries.firstOrNull {
+                it.name == name
+            }
+        } ?: defaults.audioQuality,
     ).normalized()
 }.distinctUntilChanged()
 
@@ -229,6 +236,7 @@ fun updatePlayerSettings(value: PlayerSettings) = dataStoreWrite {
             value = normalized.subtitleLanguage
         )
         settings[PLAYER_STOP_ON_TASK_REMOVED_KEY] = normalized.stopOnTaskRemoved
+        settings[PLAYER_AUDIO_QUALITY_KEY] = normalized.audioQuality.name
     }
 }
 

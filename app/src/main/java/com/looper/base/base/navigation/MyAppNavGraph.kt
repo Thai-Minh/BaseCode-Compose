@@ -7,9 +7,12 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import com.looper.base.base.navigation.child.aboutNavGraph
 import com.looper.base.base.navigation.child.equalizerNavGraph
 import com.looper.base.base.navigation.child.languageNavGraph
+import com.looper.base.base.navigation.child.mainNavGraph
 import com.looper.base.base.navigation.child.sleepTimerNavGraph
+import com.looper.base.base.navigation.child.socialAppNavGraph
 import com.looper.base.base.navigation.child.splashNavGraph
 
 @Composable
@@ -24,9 +27,15 @@ fun MyAppNavGraph(
 
             languageNavGraph(navController = navController)
 
+            mainNavGraph(navController = navController)
+
             equalizerNavGraph(navController = navController)
 
             sleepTimerNavGraph(navController = navController)
+
+            socialAppNavGraph(navController = navController)
+
+            aboutNavGraph(navController = navController)
         }
     )
 }
