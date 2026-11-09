@@ -1,8 +1,10 @@
 package com.looper.base.player.source
 
 import android.content.Context
+import android.net.ConnectivityManager
 import androidx.media3.common.MimeTypes
 import com.looper.base.database.data.MediaType
+import com.looper.base.player.model.AudioQuality
 import io.ytdlp.android.YtDlpAndroid
 import io.ytdlp.core.model.Format
 import io.ytdlp.core.model.MediaInfo
@@ -43,6 +45,7 @@ data class ResolveOptions(
     val maxVideoHeight: Int,
     val preferredAudioLanguage: String? = null,
     val subtitleLanguage: String? = null,
+    val audioQuality: AudioQuality = AudioQuality.AUTO,
 )
 
 data class ResolvedMedia(
@@ -62,7 +65,13 @@ class MediaResolver(
     private val context: Context,
 ) {
 
-    class ResolveException(message: String, cause: Throwable? = null) : Exception(message, cause)
+    enum class Reason { PLAYLIST, DRM, NO_STREAM, NOT_FOUND, UNKNOWN }
+
+    class ResolveException(
+        message: String,
+        val reason: Reason = Reason.UNKNOWN,
+        cause: Throwable? = null,
+    ) : Exception(message, cause)
 
     private companion object {
         val VIDEO_CODEC_RANK = listOf("avc1", "vp09", "vp9", "hev1", "hvc1", "av01")
@@ -83,10 +92,16 @@ class MediaResolver(
             val ytdlp = YtDlpAndroid.init(context)
             val info = ytdlp.getInfo(sourceUrl)
             if (info.isPlaylist) {
-                throw ResolveException("The link is for a playlist; please paste the link to a song.")
+                throw ResolveException(
+                    message = "The link is for a playlist; please paste the link to a song.",
+                    reason = Reason.PLAYLIST,
+                )
             }
             if (info.drmProtected) {
-                throw ResolveException("The Content Contains DRM And Cannot Be Played")
+                throw ResolveException(
+                    message = "The Content Contains DRM And Cannot Be Played",
+                    reason = Reason.DRM,
+                )
             }
 
             val playable = info.formats.filter {
@@ -95,20 +110,26 @@ class MediaResolver(
             val isVideoSource = playable.any {
                 it.hasVideo
             }
+            val bitrateCap = audioBitrateCap(quality = options.audioQuality)
             val stream = if (isVideoSource) {
                 selectSplit(
                     info = info,
                     formats = playable,
                     maxHeight = options.maxVideoHeight,
                     audioLanguage = options.preferredAudioLanguage,
+                    bitrateCap = bitrateCap,
                 ) ?: selectVideo(info = info, formats = playable)
             } else {
                 selectAudio(
                     info = info,
                     formats = playable,
-                    audioLanguage = options.preferredAudioLanguage
+                    audioLanguage = options.preferredAudioLanguage,
+                    bitrateCap = bitrateCap,
                 )
-            } ?: throw ResolveException("No Stream Found")
+            } ?: throw ResolveException(
+                message = "No Stream Found",
+                reason = Reason.NO_STREAM,
+            )
             val subtitles = if (isVideoSource) {
                 selectSubtitles(info = info, preferredLanguage = options.subtitleLanguage)
             } else {
@@ -147,6 +168,7 @@ class MediaResolver(
         formats: List<Format>,
         maxHeight: Int,
         audioLanguage: String?,
+        bitrateCap: Double?,
     ): ResolvedStream? {
         val videoCandidates = formats.filter {
             it.streamType == StreamType.PROGRESSIVE && it.isVideoOnly && it.url != null && (it.height
@@ -155,8 +177,7 @@ class MediaResolver(
         val decodable = videoCandidates
             .filterNot {
                 it.vcodec.orEmpty().startsWith(prefix = "av01")
-            }
-            .ifEmpty {
+            }.ifEmpty {
                 videoCandidates
             }
         val video = decodable
@@ -168,21 +189,21 @@ class MediaResolver(
                 }.thenByDescending {
                     it.tbr ?: 0.0
                 }
-            )
-            .firstOrNull()
+            ).firstOrNull()
             ?: return null
         val audio = formats
             .filter {
                 it.streamType == StreamType.PROGRESSIVE && it.isAudioOnly && it.url != null
-            }
-            .sortedWith(
+            }.sortedWith(
                 comparator = compareBy<Format> {
                     languageRank(format = it, preferred = audioLanguage)
                 }.thenBy {
+                    bitrateBucket(format = it, cap = bitrateCap)
+                }.thenBy {
                     codecRank(codec = it.acodec, ranking = AUDIO_CODEC_RANK)
-                }.thenByDescending {
-                    it.abr ?: it.tbr ?: 0.0
-                }
+                }.then(
+                    comparator = bitrateComparator(cap = bitrateCap)
+                )
             ).firstOrNull() ?: return null
         val videoUrl = video.url!!
         val audioUrl = audio.url!!
@@ -227,8 +248,7 @@ class MediaResolver(
                 info.automaticCaptions.entries
                     .firstOrNull {
                         it.key.equals(other = language, ignoreCase = true)
-                    }
-                    ?.let {
+                    }?.let {
                         subtitleTrack(language = it.key, tracks = it.value, isAutomatic = true)
                     }
             }
@@ -254,6 +274,39 @@ class MediaResolver(
             mimeType = mimeType,
             isAutomatic = isAutomatic,
         )
+    }
+
+    private fun audioBitrateCap(quality: AudioQuality): Double? = when (quality) {
+        AudioQuality.AUTO -> if (isMeteredNetwork()) {
+            AudioQuality.NORMAL.maxBitrateKbps
+        } else {
+            null
+        }
+
+        else -> quality.maxBitrateKbps
+    }
+
+    private fun isMeteredNetwork(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
+        return manager.isActiveNetworkMetered
+    }
+
+    private fun bitrateOf(format: Format): Double = format.abr ?: format.tbr ?: 0.0
+
+    private fun bitrateBucket(format: Format, cap: Double?): Int =
+        if (cap == null || bitrateOf(format = format) <= cap) {
+            0
+        } else {
+            1
+        }
+
+    private fun bitrateComparator(cap: Double?): Comparator<Format> = compareBy { format ->
+        val bitrate = bitrateOf(format = format)
+        if (cap == null || bitrate <= cap) {
+            -bitrate
+        } else {
+            bitrate
+        }
     }
 
     private fun codecRank(codec: String?, ranking: List<String>): Int {
@@ -286,11 +339,9 @@ class MediaResolver(
         val progressive = formats
             .filter {
                 it.streamType == StreamType.PROGRESSIVE && it.hasAudio && it.hasVideo
-            }
-            .maxByOrNull {
+            }.maxByOrNull {
                 it.height ?: 0
-            }
-            ?.let {
+            }?.let {
                 PlayableMedia.from(info = info, format = it)
             } ?: PlayableSelector.select(info = info, preferAudioOnly = false)
         return progressive?.toStream(info = info)
@@ -299,24 +350,27 @@ class MediaResolver(
     private fun selectAudio(
         info: MediaInfo,
         formats: List<Format>,
-        audioLanguage: String?
+        audioLanguage: String?,
+        bitrateCap: Double?,
     ): ResolvedStream? {
-        if (audioLanguage != null) {
+        if (audioLanguage != null || bitrateCap != null) {
             formats
                 .filter {
-                    it.isAudioOnly && languageRank(format = it, preferred = audioLanguage) == 0
-                }
-                .sortedWith(
+                    it.isAudioOnly && (audioLanguage == null || languageRank(
+                        format = it,
+                        preferred = audioLanguage
+                    ) == 0)
+                }.sortedWith(
                     comparator = compareBy<Format> {
+                        bitrateBucket(format = it, cap = bitrateCap)
+                    }.thenBy {
                         codecRank(codec = it.acodec, ranking = AUDIO_CODEC_RANK)
-                    }.thenByDescending {
-                        it.abr ?: it.tbr ?: 0.0
-                    }
-                )
-                .firstNotNullOfOrNull {
+                    }.then(
+                        comparator = bitrateComparator(cap = bitrateCap)
+                    )
+                ).firstNotNullOfOrNull {
                     PlayableMedia.from(info = info, format = it)
-                }
-                ?.let {
+                }?.let {
                     return it.toStream(info = info)
                 }
         }
@@ -353,8 +407,7 @@ class MediaResolver(
             .split(";")
             .map {
                 it.trim()
-            }
-            .filter {
+            }.filter {
                 val name = it.substringBefore(delimiter = "=").trim().lowercase()
                 it.contains(char = '=') && name.isNotEmpty() && name !in COOKIE_ATTRIBUTES
             }

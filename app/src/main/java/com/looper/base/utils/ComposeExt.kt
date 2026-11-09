@@ -34,6 +34,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.looper.base.ui.theme.Color000000
 import com.looper.base.ui.theme.ColorFFFFFF
 
 @Composable
@@ -159,7 +160,7 @@ fun Modifier.clickableWhiteColor(
     composed {
         clickable(
             interactionSource = remember { MutableInteractionSource() },
-            indication = ripple(color = Color.White),
+            indication = ripple(color = ColorFFFFFF),
             enabled = enabled,
             onClick = onClick
         )
@@ -228,7 +229,7 @@ fun Modifier.clip(
 }
 
 fun Modifier.advancedShadow(
-    color: Color = Color.Black,
+    color: Color = Color000000,
     alpha: Float = 1f,
     cornersRadius: Dp = 0.dp,
     shadowBlurRadius: Dp = 0.dp,

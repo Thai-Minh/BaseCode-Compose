@@ -1,13 +1,17 @@
 package com.looper.base.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.looper.base.R
+import com.looper.ads.R as AdsR
 
 val CustomFont = FontFamily(
     Font(resId = R.font.poppins_extra_bold, weight = FontWeight.W800),
@@ -16,6 +20,33 @@ val CustomFont = FontFamily(
     Font(resId = R.font.poppins_light, weight = FontWeight.W300),
     Font(resId = R.font.poppins_medium, weight = FontWeight.W500),
     Font(resId = R.font.poppins_regular, weight = FontWeight.W400),
+)
+
+val SfProFont = FontFamily(
+    Font(resId = AdsR.font.sf_pro_bold, weight = FontWeight.W700),
+    Font(resId = AdsR.font.sf_pro_semibold, weight = FontWeight.W600),
+    Font(resId = AdsR.font.sf_pro_medium, weight = FontWeight.W500),
+    Font(resId = AdsR.font.sf_pro_regular, weight = FontWeight.W400),
+)
+
+fun sfProTextStyle(
+    fontSize: TextUnit,
+    lineHeight: TextUnit,
+    fontWeight: FontWeight = FontWeight.W400,
+    color: Color = ColorFFFFFF,
+): TextStyle = TextStyle(
+    fontFamily = SfProFont,
+    fontWeight = fontWeight,
+    fontSize = fontSize,
+    lineHeight = lineHeight,
+    color = color,
+    platformStyle = PlatformTextStyle(
+        includeFontPadding = false
+    ),
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Center,
+        trim = LineHeightStyle.Trim.None
+    ),
 )
 
 // Set of Material typography styles to start with

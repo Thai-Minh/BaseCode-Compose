@@ -203,7 +203,9 @@ object LrcParser {
         plainLines.forEach { (lineNumber, _) ->
             issues += LrcIssue(lineNumber = lineNumber, type = LrcIssueType.MISSING_TIMESTAMP)
         }
-        rawLines.distinctBy { it.lineNumber }.zipWithNext().forEach { (previous, next) ->
+        rawLines.distinctBy {
+            it.lineNumber
+        }.zipWithNext().forEach { (previous, next) ->
             if (next.startMs < previous.startMs) {
                 issues += LrcIssue(
                     lineNumber = next.lineNumber,
@@ -215,8 +217,7 @@ object LrcParser {
             rawLines
                 .filter {
                     it.startMs - offsetMs > durationMs
-                }
-                .forEach {
+                }.forEach {
                     issues += LrcIssue(
                         lineNumber = it.lineNumber,
                         type = LrcIssueType.BEYOND_DURATION
@@ -271,7 +272,7 @@ object LrcParser {
             return emptyList()
         }
         val words = mutableListOf<RawWord>()
-        val leading = body.substring(0, tags.first().range.first)
+        val leading = body.substring(startIndex = 0, endIndex = tags.first().range.first)
         if (leading.isNotBlank()) {
             words += RawWord(startMs = lineStart, text = leading)
         }
@@ -301,7 +302,12 @@ object LrcParser {
             }
             previous = maxOf(a = previous, b = time)
             val textEnd = tags.getOrNull(index + 1)?.range?.first ?: body.length
-            words += RawWord(startMs = time, text = body.substring(tag.range.last + 1, textEnd))
+            words += RawWord(
+                startMs = time, text = body.substring(
+                    startIndex = tag.range.last + 1,
+                    endIndex = textEnd
+                )
+            )
         }
         return words
     }

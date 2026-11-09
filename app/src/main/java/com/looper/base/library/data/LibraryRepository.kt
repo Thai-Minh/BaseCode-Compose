@@ -143,6 +143,8 @@ class LibraryRepository(
         playlistDao.setThumbnail(id = playlistId, thumbnailPath = target.absolutePath)
     }
 
+    fun observeMediaItem(id: String): Flow<MediaItemEntity?> = mediaItemDao.observe(id = id)
+
     suspend fun setFavorite(mediaItemIds: List<String>, favorite: Boolean) {
         val now = System.currentTimeMillis()
         val items = mediaItemDao.getByIds(ids = mediaItemIds)

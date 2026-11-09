@@ -78,6 +78,20 @@ object IncomingLinkParser {
         else -> null
     }
 
+    fun extractUrl(text: String): String? {
+        val trimmed = text.trim()
+        firstUrl(text = trimmed)?.let {
+            return it
+        }
+        return trimmed
+            .takeIf {
+                it.isNotEmpty() && it.none(predicate = Char::isWhitespace) && Patterns.WEB_URL.matcher(it).matches()
+            }
+            ?.let {
+                "https://$it"
+            }
+    }
+
     private fun firstUrl(text: String): String? {
         val matcher = Patterns.WEB_URL.matcher(text)
         while (matcher.find()) {

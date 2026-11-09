@@ -152,7 +152,10 @@ class StreamRepository(
 
     suspend fun playbackSource(mediaItemId: String): PlaybackSource {
         val item = mediaItemDao.get(id = mediaItemId)
-            ?: throw MediaResolver.ResolveException("Media item $mediaItemId not found")
+            ?: throw MediaResolver.ResolveException(
+                message = "Media item $mediaItemId not found",
+                reason = MediaResolver.Reason.NOT_FOUND,
+            )
         localSource(item = item)?.let {
             return it
         }
@@ -185,6 +188,7 @@ class StreamRepository(
             maxVideoHeight = settings.videoMaxHeight,
             preferredAudioLanguage = settings.preferredAudioLanguage,
             subtitleLanguage = settings.subtitleLanguage,
+            audioQuality = settings.audioQuality,
         )
     }
 

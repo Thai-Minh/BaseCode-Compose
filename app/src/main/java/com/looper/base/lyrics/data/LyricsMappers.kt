@@ -49,7 +49,7 @@ fun Lyrics.toEntity(
     syncLevel = syncLevel,
     format = format,
     rawContent = rawContent,
-    linesJson = lyricsJson.encodeToString(lines),
+    linesJson = lyricsJson.encodeToString(value = lines),
     parserVersion = LyricsConstants.PARSER_VERSION,
     songwriters = songwriters.takeIf {
         it.isNotEmpty()
@@ -69,7 +69,7 @@ fun LyricsDecorationEntity.toDomain(expectedLineCount: Int): LyricsDecoration? {
         return null
     }
     val lines = runCatching {
-        lyricsJson.decodeFromString<List<LyricsDecorationLine>>(linesJson)
+        lyricsJson.decodeFromString<List<LyricsDecorationLine>>(string = linesJson)
     }.getOrNull()
         ?.takeIf {
             it.size == lineCount
@@ -87,6 +87,6 @@ fun LyricsDecoration.toEntity(mediaItemId: String) = LyricsDecorationEntity(
     kind = kind,
     language = language,
     source = source,
-    linesJson = lyricsJson.encodeToString(lines),
+    linesJson = lyricsJson.encodeToString(value = lines),
     lineCount = lines.size,
 )

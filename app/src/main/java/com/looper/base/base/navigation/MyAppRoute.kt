@@ -22,3 +22,9 @@ object EqualizerInput
 
 @Serializable
 object SleepTimerInput
+
+@Serializable
+object SocialAppInput
+
+@Serializable
+object AboutInput

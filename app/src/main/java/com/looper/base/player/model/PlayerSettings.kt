@@ -26,6 +26,7 @@ data class PlayerSettings(
     val preferredAudioLanguage: String? = null,
     val subtitleLanguage: String? = null,
     val stopOnTaskRemoved: Boolean = true,
+    val audioQuality: AudioQuality = AudioQuality.AUTO,
 ) {
     val pitchMultiplier: Float
         get() = 2f.pow(x = pitchSemitones / 12f)
