@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.looper.base.base.navigation.child.aboutNavGraph
+import com.looper.base.base.navigation.child.audioPreviewNavGraph
 import com.looper.base.base.navigation.child.equalizerNavGraph
 import com.looper.base.base.navigation.child.languageNavGraph
 import com.looper.base.base.navigation.child.mainNavGraph
@@ -36,6 +37,8 @@ fun MyAppNavGraph(
             socialAppNavGraph(navController = navController)
 
             aboutNavGraph(navController = navController)
+
+            audioPreviewNavGraph(navController = navController)
         }
     )
 }

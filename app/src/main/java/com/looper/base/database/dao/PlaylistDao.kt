@@ -91,6 +91,9 @@ interface PlaylistDao {
     @Query("SELECT playlistId FROM playlist_item WHERE mediaItemId = :mediaItemId")
     suspend fun getPlaylistIdsContaining(mediaItemId: String): List<String>
 
+    @Query("SELECT playlistId FROM playlist_item WHERE mediaItemId = :mediaItemId")
+    fun observePlaylistIdsContaining(mediaItemId: String): Flow<List<String>>
+
     @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_item WHERE playlistId = :playlistId")
     suspend fun nextPosition(playlistId: String): Int
 

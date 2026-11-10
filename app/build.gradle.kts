@@ -145,6 +145,11 @@ dependencies {
     // coil
     implementation(libs.coil)
     implementation(libs.coil.video)
+    implementation(libs.coil.gif)
+
+    // haze
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
     implementation(libs.coil.network.okhttp)
 
     // Kotlin Coroutine

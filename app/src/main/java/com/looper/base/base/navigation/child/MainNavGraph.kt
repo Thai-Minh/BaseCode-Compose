@@ -4,6 +4,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.looper.base.base.navigation.AboutInput
+import com.looper.base.base.navigation.AudioPreviewInput
 import com.looper.base.base.navigation.MainInput
 import com.looper.base.base.navigation.SocialAppInput
 import com.looper.base.base.navigation.navigateSingle
@@ -17,6 +18,11 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
             },
             onNavigateAbout = {
                 navController.navigateSingle<AboutInput>(route = AboutInput)
+            },
+            onNavigateAudioPreview = { sourceUrl ->
+                navController.navigateSingle<AudioPreviewInput>(
+                    route = AudioPreviewInput(sourceUrl = sourceUrl),
+                )
             },
         )
     }

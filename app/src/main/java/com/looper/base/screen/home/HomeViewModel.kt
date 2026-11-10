@@ -2,43 +2,92 @@ package com.looper.base.screen.home
 
 import androidx.lifecycle.viewModelScope
 import com.looper.base.base.mvi.MviViewModel
+import com.looper.base.base.storage.homeTourDone
+import com.looper.base.base.storage.updateHomeTourDone
 import com.looper.base.deeplink.IncomingLink
 import com.looper.base.deeplink.IncomingLinkDispatcher
 import com.looper.base.deeplink.IncomingLinkParser
+import com.looper.base.library.data.LibraryRepository
 import com.looper.base.player.PlayerConnection
-import com.looper.base.player.source.MediaResolver
-import com.looper.base.player.source.StreamRepository
 import com.looper.base.screen.home.data.HomeEffect
 import com.looper.base.screen.home.data.HomeIntent
 import com.looper.base.screen.home.data.HomeUiState
-import com.looper.base.screen.home.data.LinkError
+import com.looper.base.screen.home.data.HomeTourStep
+import com.looper.base.screen.home.data.NowPlayingUi
 import com.looper.base.screen.home.data.SocialAppLauncher
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val socialAppLauncher: SocialAppLauncher,
-    private val streamRepository: StreamRepository,
     private val playerConnection: PlayerConnection,
+    private val libraryRepository: LibraryRepository,
     private val incomingLinkDispatcher: IncomingLinkDispatcher,
 ) : MviViewModel<HomeUiState, HomeIntent, HomeEffect>(
     initialState = HomeUiState(),
 ) {
 
-    private var resolveJob: Job? = null
-    private var resolvingUrl: String? = null
-
     init {
+        viewModelScope.launch {
+            if (!homeTourDone.first()) {
+                setState {
+                    copy(tourStep = HomeTourStep.INTRO)
+                }
+            }
+        }
+        viewModelScope.launch {
+            val isFavorite = playerConnection.state
+                .map { player ->
+                    player.mediaId
+                }
+                .distinctUntilChanged()
+                .flatMapLatest { mediaId ->
+                    if (mediaId == null) {
+                        flowOf(value = false)
+                    } else {
+                        libraryRepository.observeMediaItem(id = mediaId).map { item ->
+                            item?.isFavorite == true
+                        }
+                    }
+                }
+            combine(
+                playerConnection.state,
+                playerConnection.position,
+                isFavorite,
+            ) { player, positionMs, favorite ->
+                if (player.hasMedia) {
+                    NowPlayingUi(
+                        title = player.title.orEmpty(),
+                        artist = player.artist.orEmpty(),
+                        positionMs = positionMs,
+                        durationMs = player.durationMs,
+                        isFavorite = favorite,
+                        isPlaying = player.isPlaying,
+                    )
+                } else {
+                    null
+                }
+            }
+                .distinctUntilChanged()
+                .collect { nowPlaying ->
+                    setState {
+                        copy(nowPlaying = nowPlaying)
+                    }
+                }
+        }
         viewModelScope.launch {
             incomingLinkDispatcher.pending
                 .filterIsInstance<IncomingLink.SharedUrl>()
                 .collect { link ->
                     incomingLinkDispatcher.consume(link = link)
-                    setState {
-                        copy(link = link.url)
-                    }
                     submitLink(text = link.url)
                 }
         }
@@ -50,11 +99,15 @@ class HomeViewModel(
                 copy(link = intent.link)
             }
 
-            HomeIntent.LinkClear -> {
-                cancelResolve()
+            is HomeIntent.LinkPaste -> {
                 setState {
-                    copy(link = "")
+                    copy(link = intent.link)
                 }
+                submitLink(text = intent.link)
+            }
+
+            HomeIntent.LinkClear -> setState {
+                copy(link = "")
             }
 
             HomeIntent.LinkSubmit -> submitLink(text = currentState.link)
@@ -63,10 +116,26 @@ class HomeViewModel(
 
             is HomeIntent.SocialAppClick -> socialAppLauncher.open(app = intent.app)
 
-            HomeIntent.NowPlayingFavoriteClick,
-            HomeIntent.PreviousClick,
-            HomeIntent.PlayPauseClick,
-            HomeIntent.NextClick,
+            HomeIntent.NowPlayingFavoriteClick -> if (currentState.nowPlaying != null) {
+                playerConnection.toggleFavorite()
+            }
+
+            HomeIntent.PreviousClick -> if (currentState.nowPlaying != null) {
+                playerConnection.skipToPrevious()
+            }
+
+            HomeIntent.PlayPauseClick -> if (currentState.nowPlaying != null) {
+                playerConnection.togglePlayPause()
+            }
+
+            HomeIntent.NextClick -> if (currentState.nowPlaying != null) {
+                playerConnection.skipToNext()
+            }
+
+            HomeIntent.TourNext -> advanceTour()
+
+            HomeIntent.TourSkip -> finishTour()
+
             HomeIntent.PlaylistsSeeAllClick,
             is HomeIntent.PlaylistClick,
             is HomeIntent.PlaylistFavoriteClick,
@@ -79,51 +148,41 @@ class HomeViewModel(
     private fun submitLink(text: String) {
         val sourceUrl = IncomingLinkParser.extractUrl(text = text)
         if (sourceUrl == null) {
-            sendEffect(effect = HomeEffect.ShowLinkError(error = LinkError.INVALID_LINK))
+            sendEffect(effect = HomeEffect.ShowInvalidLink)
             return
         }
-        if (resolveJob?.isActive == true && resolvingUrl == sourceUrl) {
-            return
-        }
-        resolveJob?.cancel()
-        resolvingUrl = sourceUrl
         setState {
-            copy(isResolvingLink = true)
+            copy(link = "")
         }
-        resolveJob = viewModelScope.launch {
-            try {
-                val item = streamRepository.importFromUrl(sourceUrl = sourceUrl)
-                playerConnection.playMediaItems(mediaItemIds = listOf(item.id))
-                setState {
-                    copy(link = "", isResolvingLink = false)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                setState {
-                    copy(isResolvingLink = false)
-                }
-                sendEffect(effect = HomeEffect.ShowLinkError(error = e.toLinkError()))
+        sendEffect(effect = HomeEffect.NavigateToAudioPreview(sourceUrl = sourceUrl))
+    }
+
+    private fun advanceTour() {
+        val next = when (currentState.tourStep) {
+            HomeTourStep.INTRO -> HomeTourStep.PASTE_LINK
+            HomeTourStep.PASTE_LINK -> HomeTourStep.NOW_PLAYING
+            HomeTourStep.NOW_PLAYING -> if (currentState.socialApps.isNotEmpty()) {
+                HomeTourStep.SOCIAL_APPS
+            } else {
+                null
+            }
+
+            HomeTourStep.SOCIAL_APPS,
+            null -> null
+        }
+        if (next == null) {
+            finishTour()
+        } else {
+            setState {
+                copy(tourStep = next)
             }
         }
     }
 
-    private fun cancelResolve() {
-        resolveJob?.cancel()
-        resolveJob = null
-        resolvingUrl = null
+    private fun finishTour() {
         setState {
-            copy(isResolvingLink = false)
+            copy(tourStep = null)
         }
+        updateHomeTourDone(value = true)
     }
-
-    private fun Exception.toLinkError(): LinkError =
-        when ((this as? MediaResolver.ResolveException)?.reason) {
-            MediaResolver.Reason.PLAYLIST -> LinkError.PLAYLIST
-            MediaResolver.Reason.DRM -> LinkError.DRM
-            MediaResolver.Reason.NO_STREAM -> LinkError.NO_STREAM
-            MediaResolver.Reason.NOT_FOUND,
-            MediaResolver.Reason.UNKNOWN,
-            null -> LinkError.FAILED
-        }
 }

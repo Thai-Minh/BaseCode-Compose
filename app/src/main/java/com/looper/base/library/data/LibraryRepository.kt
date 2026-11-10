@@ -5,7 +5,9 @@ import android.net.Uri
 import com.looper.base.base.storage.lastFmSettings
 import com.looper.base.database.AppDatabase
 import com.looper.base.database.data.DownloadKind
+import com.looper.base.database.dao.PlaylistSummary
 import com.looper.base.database.data.MediaItemEntity
+import com.looper.base.database.data.PlaylistEntity
 import com.looper.base.database.data.SearchHistoryEntity
 import com.looper.base.lastfm.data.LastFmClient
 import com.looper.base.library.model.DynamicPlaylist
@@ -24,6 +26,7 @@ import java.io.File
 import java.io.IOException
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.UUID
 
 class LibraryRepository(
     private val context: Context,
@@ -112,6 +115,29 @@ class LibraryRepository(
                 it.item
             }
         }
+
+    fun observePlaylistSummaries(): Flow<List<PlaylistSummary>> = playlistDao.observeSummaries()
+
+    fun observePlaylistThumbnails(playlistId: String, limit: Int): Flow<List<String>> =
+        playlistDao.observeThumbnails(playlistId = playlistId, limit = limit)
+
+    fun observePlaylistIdsContaining(mediaItemId: String): Flow<List<String>> =
+        playlistDao.observePlaylistIdsContaining(mediaItemId = mediaItemId)
+
+    suspend fun createPlaylist(name: String, genre: String?): String {
+        val id = UUID.randomUUID().toString()
+        playlistDao.insert(
+            playlist = PlaylistEntity(
+                id = id,
+                name = name,
+                genre = genre,
+            ),
+        )
+        return id
+    }
+
+    suspend fun platformName(platformId: String): String? =
+        database.platformDao().get(id = platformId)?.name
 
     suspend fun addToPlaylist(playlistId: String, mediaItemIds: List<String>): Int =
         mediaItemIds.distinct().count {

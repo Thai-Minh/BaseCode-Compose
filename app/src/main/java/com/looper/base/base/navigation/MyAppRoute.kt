@@ -28,3 +28,8 @@ object SocialAppInput
 
 @Serializable
 object AboutInput
+
+@Serializable
+data class AudioPreviewInput(
+    val sourceUrl: String
+)

@@ -64,6 +64,8 @@ data class NowPlayingUi(
     val artist: String,
     val positionMs: Long,
     val durationMs: Long,
+    val isFavorite: Boolean,
+    val isPlaying: Boolean,
 ) {
     val progress: Float
         get() = if (durationMs > 0L) {
@@ -89,11 +91,11 @@ data class RecentDownloadUi(
     val artwork: Any?,
 )
 
-enum class LinkError { INVALID_LINK, PLAYLIST, DRM, NO_STREAM, FAILED }
+enum class HomeTourStep { INTRO, PASTE_LINK, NOW_PLAYING, SOCIAL_APPS }
 
 data class HomeUiState(
     val link: String = "",
-    val isResolvingLink: Boolean = false,
+    val tourStep: HomeTourStep? = null,
     val nowPlaying: NowPlayingUi? = null,
     val socialApps: List<SocialApp> = SocialApp.entries.take(n = 3),
     val playlists: List<PlaylistUi> = emptyList(),
@@ -102,6 +104,7 @@ data class HomeUiState(
 
 sealed interface HomeIntent : UiIntent {
     data class LinkChange(val link: String) : HomeIntent
+    data class LinkPaste(val link: String) : HomeIntent
     data object LinkClear : HomeIntent
     data object LinkSubmit : HomeIntent
     data object NowPlayingFavoriteClick : HomeIntent
@@ -116,9 +119,12 @@ sealed interface HomeIntent : UiIntent {
     data object RecentDownloadsSeeAllClick : HomeIntent
     data class RecentDownloadClick(val id: String) : HomeIntent
     data class RecentDownloadMoreClick(val id: String) : HomeIntent
+    data object TourNext : HomeIntent
+    data object TourSkip : HomeIntent
 }
 
 sealed interface HomeEffect : UiEffect {
     data object NavigateToSocialApps : HomeEffect
-    data class ShowLinkError(val error: LinkError) : HomeEffect
+    data object ShowInvalidLink : HomeEffect
+    data class NavigateToAudioPreview(val sourceUrl: String) : HomeEffect
 }

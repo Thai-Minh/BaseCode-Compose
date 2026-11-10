@@ -103,6 +103,17 @@ fun updateFirstOpen(value: Boolean) = dataStoreWrite {
     }
 }
 
+val HOME_TOUR_DONE_KEY = booleanPreferencesKey(name = "HOME_TOUR_DONE")
+val homeTourDone: Flow<Boolean> = data.map { preferences ->
+    preferences[HOME_TOUR_DONE_KEY] ?: false
+}.distinctUntilChanged()
+
+fun updateHomeTourDone(value: Boolean) = dataStoreWrite {
+    dataStore.edit { settings ->
+        settings[HOME_TOUR_DONE_KEY] = value
+    }
+}
+
 val EQ_ENABLED_KEY = booleanPreferencesKey("EQ_ENABLED")
 val EQ_PRESET_ID_KEY = stringPreferencesKey("EQ_PRESET_ID")
 val EQ_BAND_LEVELS_KEY = stringPreferencesKey("EQ_BAND_LEVELS")

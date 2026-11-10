@@ -34,6 +34,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun MainScreen(
     onNavigateSocialApps: () -> Unit,
     onNavigateAbout: () -> Unit,
+    onNavigateAudioPreview: (String) -> Unit,
     viewModel: MainViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,6 +45,7 @@ fun MainScreen(
         homeTab = {
             HomeTab(
                 onNavigateSocialApps = onNavigateSocialApps,
+                onNavigateAudioPreview = onNavigateAudioPreview,
             )
         },
         profileTab = {

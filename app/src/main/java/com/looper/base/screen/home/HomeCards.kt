@@ -88,6 +88,8 @@ private val CardShape = RoundedCornerShape(size = 50.dp)
 private val CardColor = ColorFFFFFF.copy(alpha = 0.05f)
 private val CardBorderColor = ColorFFFFFF.copy(alpha = 0.1f)
 private val ArtworkPlaceholder = ColorPainter(color = ColorFFFFFF.copy(alpha = 0.1f))
+private const val EmptyTrackText = "--/--"
+private const val EmptyTimeText = "00:00"
 
 private data class HeroImage(
     @DrawableRes val resId: Int,
@@ -176,8 +178,10 @@ private val PasteIconGlow = listOf(
 internal fun HeroCard(
     link: String,
     onLinkChange: (String) -> Unit,
+    onLinkPaste: (String) -> Unit,
     onLinkClear: () -> Unit,
     onLinkSubmit: () -> Unit,
+    pasteFieldModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = Modifier
@@ -256,9 +260,12 @@ internal fun HeroCard(
         PasteLinkField(
             link = link,
             onLinkChange = onLinkChange,
+            onLinkPaste = onLinkPaste,
             onLinkClear = onLinkClear,
             onLinkSubmit = onLinkSubmit,
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .then(other = pasteFieldModifier),
         )
     }
 }
@@ -267,6 +274,7 @@ internal fun HeroCard(
 private fun PasteLinkField(
     link: String,
     onLinkChange: (String) -> Unit,
+    onLinkPaste: (String) -> Unit,
     onLinkClear: () -> Unit,
     onLinkSubmit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -330,7 +338,8 @@ private fun PasteLinkField(
                             ?.toString()
                             ?.trim()
                         if (!pasted.isNullOrEmpty()) {
-                            onLinkChange(pasted)
+                            focusManager.clearFocus()
+                            onLinkPaste(pasted)
                         }
                     }
                 },
@@ -409,11 +418,12 @@ private fun PasteLinkField(
 
 @Composable
 internal fun NowPlayingCard(
-    nowPlaying: NowPlayingUi,
+    nowPlaying: NowPlayingUi?,
     onIntent: (HomeIntent) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(shape = CardShape),
     ) {
@@ -447,7 +457,7 @@ internal fun NowPlayingCard(
                     verticalArrangement = Arrangement.spacedBy(space = 2.dp),
                 ) {
                     Text(
-                        text = nowPlaying.artist,
+                        text = nowPlaying?.artist?.ifBlank { EmptyTrackText } ?: EmptyTrackText,
                         style = sfProTextStyle(
                             fontSize = 14.sp,
                             lineHeight = 22.sp,
@@ -457,7 +467,8 @@ internal fun NowPlayingCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = nowPlaying.title.capitalizeWords(),
+                        text = nowPlaying?.title?.ifBlank { EmptyTrackText }?.capitalizeWords()
+                            ?: EmptyTrackText,
                         style = sfProTextStyle(
                             fontSize = 16.sp,
                             lineHeight = 24.sp,
@@ -481,7 +492,13 @@ internal fun NowPlayingCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_home_heart_outline),
+                        painter = painterResource(
+                            id = if (nowPlaying?.isFavorite == true) {
+                                R.drawable.ic_home_heart_filled
+                            } else {
+                                R.drawable.ic_home_heart_outline
+                            }
+                        ),
                         contentDescription = null,
                     )
                 }
@@ -489,7 +506,7 @@ internal fun NowPlayingCard(
 
             Spacer(modifier = Modifier.height(height = 22.dp))
 
-            PlaybackProgress(progress = nowPlaying.progress)
+            PlaybackProgress(progress = nowPlaying?.progress ?: 0f)
 
             Spacer(modifier = Modifier.height(height = 8.dp))
 
@@ -502,11 +519,15 @@ internal fun NowPlayingCard(
                     lineHeight = 16.sp,
                 )
                 Text(
-                    text = formatDuration(ms = nowPlaying.positionMs),
+                    text = nowPlaying?.let { track ->
+                        formatDuration(ms = track.positionMs)
+                    } ?: EmptyTimeText,
                     style = timeStyle,
                 )
                 Text(
-                    text = "-" + formatDuration(ms = nowPlaying.remainingMs),
+                    text = nowPlaying?.let { track ->
+                        "-" + formatDuration(ms = track.remainingMs)
+                    } ?: EmptyTimeText,
                     style = timeStyle,
                     textAlign = TextAlign.End,
                 )
@@ -526,7 +547,11 @@ internal fun NowPlayingCard(
                     },
                 )
                 PlaybackButton(
-                    iconRes = R.drawable.ic_home_play,
+                    iconRes = if (nowPlaying?.isPlaying == true) {
+                        R.drawable.ic_widget_pause
+                    } else {
+                        R.drawable.ic_home_play
+                    },
                     width = 100.dp,
                     onClick = {
                         onIntent(HomeIntent.PlayPauseClick)
@@ -622,8 +647,10 @@ private fun PlaybackButton(
 internal fun SocialAppsCard(
     apps: List<SocialApp>,
     onIntent: (HomeIntent) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     SectionCard(
+        modifier = modifier,
         title = stringResource(id = R.string.home_social_apps),
         onSeeAllClick = null,
         contentPadding = PaddingValues(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 24.dp),
@@ -875,11 +902,12 @@ private fun SectionCard(
     onSeeAllClick: (() -> Unit)?,
     contentPadding: PaddingValues,
     headerPadding: PaddingValues = PaddingValues(),
+    modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(shape = CardShape)
             .background(color = CardColor)

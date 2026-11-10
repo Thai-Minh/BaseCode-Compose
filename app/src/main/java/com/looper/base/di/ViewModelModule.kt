@@ -3,6 +3,7 @@ package com.looper.base.di
 import com.looper.base.equalizer.ui.EqViewModel
 import com.looper.base.player.sleeptimer.ui.SleepTimerViewModel
 import com.looper.base.screen.about.AboutViewModel
+import com.looper.base.screen.audiopreview.AudioPreviewViewModel
 import com.looper.base.screen.home.HomeViewModel
 import com.looper.base.screen.main.MainViewModel
 import com.looper.base.screen.player.PlayerViewModel
@@ -32,9 +33,19 @@ val viewModelModule = module {
     viewModel {
         HomeViewModel(
             socialAppLauncher = get(),
-            streamRepository = get(),
             playerConnection = get(),
+            libraryRepository = get(),
             incomingLinkDispatcher = get(),
+        )
+    }
+
+    viewModel { parameters ->
+        AudioPreviewViewModel(
+            sourceUrl = parameters.get(),
+            streamRepository = get(),
+            libraryRepository = get(),
+            downloadRepository = get(),
+            playerConnection = get(),
         )
     }
 

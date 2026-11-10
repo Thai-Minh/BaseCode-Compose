@@ -34,6 +34,7 @@ ytdlp = "1.0.0"
 media3 = "1.11.1"
 
 coilVersion = "3.6.3"
+hazeVersion = "2.0.1"
 
 navigation-compose = "2.10.2"
 compose-ui = "1.12.1"
@@ -155,6 +156,9 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 coil = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilVersion" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilVersion" }
 coil-video = { module = "io.coil-kt.coil3:coil-video", version.ref = "coilVersion" }
+coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coilVersion" }
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "hazeVersion" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "hazeVersion" }
 
 #billing client
 billing-ktx = { group = "com.looper.zenith.Thai-Minh", name = "iap-manager", version.ref = "iapManager" }
