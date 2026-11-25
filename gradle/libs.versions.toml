@@ -85,6 +85,8 @@ webkit = "1.16.0"
 
 material3 = "1.4.0"
 
+camerax = "1.6.2"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -213,6 +215,14 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 #FFmpeg
 #smart-exception-java = { module = "com.arthenica:smart-exception-java", version.ref = "smartExceptionJava" }
 #ffmpeg-kit-support16kb = {module = "com.moizhassan.ffmpeg:ffmpeg-kit-16kb", version.ref = "ffmpegKit"}
+
+#CameraX
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
+androidx-camera-compose = { group = "androidx.camera", name = "camera-compose", version.ref = "camerax" }
+androidx-camera-viewfinder-compose = { group = "androidx.camera.viewfinder", name = "viewfinder-compose", version.ref = "camerax" }
 
 #Webkit
 #webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }

@@ -76,21 +76,21 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     MyApp(navController = navController)
 
-                    Button(
-                        onClick = {
-                            iapLauncher.launch(
-                                Intent(
-                                    this@MainActivity,
-                                    MainIAPActivity::class.java
-                                )
-                            )
-                        },
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                    ) {
-                        Text("IAP test")
-                    }
+//                    Button(
+//                        onClick = {
+//                            iapLauncher.launch(
+//                                Intent(
+//                                    this@MainActivity,
+//                                    MainIAPActivity::class.java
+//                                )
+//                            )
+//                        },
+//                        modifier = Modifier
+//                            .align(Alignment.Center)
+//                            .padding(16.dp),
+//                    ) {
+//                        Text("IAP test")
+//                    }
                 }
             }
         }

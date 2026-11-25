@@ -65,4 +65,28 @@
     <string name="system_default_language">Device language</string>
     <string name="system_default_language_header">System Default Language</string>
 
+    <!--Dual camera-->
+    <string name="dual_camera_close">Close</string>
+    <string name="dual_camera_swap">Swap cameras</string>
+    <string name="dual_camera_layout_split_vertical">Top and bottom</string>
+    <string name="dual_camera_layout_split_horizontal">Side by side</string>
+    <string name="dual_camera_layout_pip_top_start">Small window, top left</string>
+    <string name="dual_camera_layout_pip_top_end">Small window, top right</string>
+    <string name="dual_camera_layout_pip_bottom_start">Small window, bottom left</string>
+    <string name="dual_camera_layout_pip_bottom_end">Small window, bottom right</string>
+    <string name="dual_camera_take_photo">Take photo</string>
+    <string name="dual_camera_start_recording">Start recording</string>
+    <string name="dual_camera_stop_recording">Stop recording</string>
+    <string name="dual_camera_photo_saved_single">Only one camera could capture. Photo saved to gallery</string>
+    <string name="dual_camera_permission_title">Camera access needed</string>
+    <string name="dual_camera_permission_message">Allow camera access to capture with the front and back cameras at the same time. Microphone access is needed to record sound.</string>
+    <string name="dual_camera_permission_grant">Grant permission</string>
+    <string name="dual_camera_unsupported_title">Dual camera not supported</string>
+    <string name="dual_camera_unsupported_message">This device can\'t run the front and back cameras at the same time.</string>
+    <string name="dual_camera_photo_saved">Photo saved to gallery</string>
+    <string name="dual_camera_video_saved">Video saved to gallery</string>
+    <string name="dual_camera_capture_failed">Couldn\'t capture photo</string>
+    <string name="dual_camera_record_failed">Couldn\'t record video</string>
+    <string name="dual_camera_bind_failed">Couldn\'t open cameras</string>
+
 </resources>
