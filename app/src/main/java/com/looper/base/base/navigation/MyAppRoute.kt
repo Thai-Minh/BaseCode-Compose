@@ -19,3 +19,6 @@ object MainInput
 
 @Serializable
 object DualCameraInput
+
+@Serializable
+object ReactionInput

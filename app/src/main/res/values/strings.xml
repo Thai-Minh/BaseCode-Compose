@@ -89,4 +89,32 @@
     <string name="dual_camera_record_failed">Couldn\'t record video</string>
     <string name="dual_camera_bind_failed">Couldn\'t open cameras</string>
 
+    <!-- Splash -->
+    <string name="splash_open_dual_camera">Dual camera</string>
+    <string name="splash_open_reaction">Reaction video</string>
+
+    <!-- Reaction -->
+    <string name="reaction_back">Back</string>
+    <string name="reaction_select_background">Select Background Video</string>
+    <string name="reaction_change_background">Change video</string>
+    <string name="reaction_switch_camera">Switch front/back camera</string>
+    <string name="reaction_swap_videos">Swap video positions</string>
+    <string name="reaction_select_reaction">Select Reaction Video</string>
+    <string name="reaction_start">Start reaction</string>
+    <string name="reaction_stop">Stop reaction</string>
+    <string name="reaction_corner_top_start">Reaction top left</string>
+    <string name="reaction_corner_top_end">Reaction top right</string>
+    <string name="reaction_corner_bottom_start">Reaction bottom left</string>
+    <string name="reaction_corner_bottom_end">Reaction bottom right</string>
+    <string name="reaction_audio_background">Original</string>
+    <string name="reaction_audio_reaction">Reaction</string>
+    <string name="reaction_audio_both">Both</string>
+    <string name="reaction_saving">Saving video… %1$d%%</string>
+    <string name="reaction_saved">Reaction video saved to gallery</string>
+    <string name="reaction_export_failed">Couldn\'t save the reaction video</string>
+    <string name="reaction_record_failed">Couldn\'t record the reaction</string>
+    <string name="reaction_background_failed">Couldn\'t open this video</string>
+    <string name="reaction_camera_failed">Couldn\'t open the front camera</string>
+    <string name="reaction_camera_permission_denied">Camera access is needed to record your reaction</string>
+
 </resources>

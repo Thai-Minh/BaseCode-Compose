@@ -31,6 +31,7 @@ import kotlin.math.sqrt
 object DualCameraMedia {
 
     private const val ALBUM_NAME = "DualCamera"
+    private const val FILE_PREFIX = "DUAL_"
 
     /**
      * Converts an [ImageProxy] into an upright [Bitmap] and closes the proxy.
@@ -182,16 +183,24 @@ object DualCameraMedia {
         return uri
     }
 
-    /** Copies a finished MP4 [file] into `Movies/DualCamera`. Call off the main thread. */
-    fun saveVideoFile(context: Context, file: File): Uri {
+    /**
+     * Copies a finished MP4 [file] into `Movies/[album]` (default `Movies/DualCamera`).
+     * Call off the main thread.
+     */
+    fun saveVideoFile(
+        context: Context,
+        file: File,
+        album: String = ALBUM_NAME,
+        filePrefix: String = FILE_PREFIX,
+    ): Uri {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "${newFileName()}.mp4")
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${newFileName(filePrefix)}.mp4")
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(
                     MediaStore.MediaColumns.RELATIVE_PATH,
-                    "${Environment.DIRECTORY_MOVIES}/$ALBUM_NAME"
+                    "${Environment.DIRECTORY_MOVIES}/$album"
                 )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
@@ -240,6 +249,6 @@ object DualCameraMedia {
             .build()
     }
 
-    private fun newFileName(): String =
-        "DUAL_" + SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+    private fun newFileName(prefix: String = FILE_PREFIX): String =
+        prefix + SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
 }

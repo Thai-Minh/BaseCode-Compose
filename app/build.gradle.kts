@@ -181,6 +181,13 @@ dependencies {
     implementation(libs.androidx.camera.video)
     implementation(libs.androidx.camera.compose)
     implementation(libs.androidx.camera.viewfinder.compose) // Camera2 fallback preview
+
+    // Media3 (reaction: background playback + composited export)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.transformer)
+    implementation(libs.androidx.media3.effect)
+    implementation(libs.androidx.media3.common)
+
 }
 
 configurations.all {

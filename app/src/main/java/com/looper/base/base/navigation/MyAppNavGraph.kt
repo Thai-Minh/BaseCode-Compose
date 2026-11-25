@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.looper.base.base.navigation.child.dualCameraNavGraph
 import com.looper.base.base.navigation.child.languageNavGraph
+import com.looper.base.base.navigation.child.reactionNavGraph
 import com.looper.base.base.navigation.child.splashNavGraph
 
 @Composable
@@ -24,6 +25,8 @@ fun MyAppNavGraph(
             languageNavGraph(navController = navController)
 
             dualCameraNavGraph(navController = navController)
+
+            reactionNavGraph(navController = navController)
         }
     )
 }
