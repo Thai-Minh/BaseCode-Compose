@@ -3,6 +3,7 @@ package com.looper.base.base.navigation.child
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.looper.base.base.navigation.CombinerInput
 import com.looper.base.base.navigation.DualCameraInput
 import com.looper.base.base.navigation.ReactionInput
 import com.looper.base.base.navigation.SplashInput
@@ -17,6 +18,9 @@ fun NavGraphBuilder.splashNavGraph(navController: NavHostController) {
             },
             onOpenReaction = {
                 navController.navigateSingle<ReactionInput>(route = ReactionInput)
+            },
+            onOpenCombiner = {
+                navController.navigateSingle<CombinerInput>(route = CombinerInput)
             },
         )
     }

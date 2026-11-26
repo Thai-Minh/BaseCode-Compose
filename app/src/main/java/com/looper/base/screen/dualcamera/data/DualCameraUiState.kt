@@ -1,5 +1,7 @@
 package com.looper.base.screen.dualcamera.data
 
+import com.looper.base.screen.common.data.DualLayout
+
 enum class DualCaptureMode {
     /** Two independent streams (Preview + ImageCapture per camera), merged into one photo. */
     Photo,

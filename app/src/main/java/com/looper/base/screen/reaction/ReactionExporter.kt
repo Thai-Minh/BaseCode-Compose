@@ -27,10 +27,11 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
-import com.looper.base.screen.reaction.data.BackgroundVideo
-import com.looper.base.screen.reaction.data.ReactionAudioMode
-import com.looper.base.screen.reaction.data.ReactionCorner
+import com.looper.base.screen.common.data.DualAudioMode
+import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.reaction.data.PickedVideo
 import com.looper.base.screen.reaction.data.ReactionLayout
+import com.looper.base.screen.reaction.data.ReactionRect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -49,6 +50,10 @@ private const val TAG = "ReactionExporter"
 private const val MAX_OUTPUT_LONG_SIDE = 1920
 private const val MAX_OUTPUT_SHORT_SIDE = 1080
 
+/** Canvas of the split layouts before scaling to the output limits (1080p portrait halves). */
+private const val SPLIT_HALF_WIDTH = 1080
+private const val SPLIT_HALF_HEIGHT = 1920
+
 /** Shorter differences are not worth a held frame (it would last a frame or two). */
 private const val MIN_HOLD_US = 50_000L
 
@@ -58,10 +63,11 @@ private const val HOLD_FRAME_RATE = 30
 private val PROGRESS_POLL_INTERVAL = 250.milliseconds
 
 /**
- * Composites the background video and the reaction recording like the preview: one fills the
- * frame, the other sits in a [ReactionCorner] window (1/3 of the width; 9:16 for the camera, the
- * video's own aspect ratio for the background), swapped when `isSwapped`. The output lasts as long as the longer video; the one that ends first keeps showing
- * its last frame until the end. Audio follows [ReactionAudioMode].
+ * Composites the background video and the reaction recording like the preview, in a
+ * [DualLayout]: one fills the frame and the other sits in a corner window (1/3 of the
+ * width; 9:16 for the camera, the video's own aspect ratio for the background), or each fills a
+ * half of the frame (center-cropped). The output lasts as long as the longer video; the one that
+ * ends first keeps showing its last frame until the end.
  *
  * Built on Media3 Transformer. With several video sequences its compositor draws the first
  * sequence on top and takes the output timeline from it, so:
@@ -73,7 +79,10 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
 @OptIn(UnstableApi::class)
 class ReactionExporter(private val context: Context) {
 
-    /** One of the two inputs. */
+    /**
+     * One of the two inputs.
+     * @param keepAudio The user wants this input's sound (ignored if the file has none).
+     */
     private class Source(
         val uri: Uri,
         val durationUs: Long,
@@ -81,27 +90,57 @@ class ReactionExporter(private val context: Context) {
     )
 
     /**
-     * Exports into a temporary MP4 in the cache dir and returns it; the caller owns the file.
-     * [onProgress] receives 0..100 on the main thread.
+     * Reaction export: the background and the camera recording, swapped when
+     * [reactionFullScreen]. PiP layouts keep the background's size; the window is 9:16 for the
+     * camera and the background's own aspect ratio when the background is in it.
      */
-    suspend fun export(
-        background: BackgroundVideo,
+    suspend fun exportReaction(
+        background: PickedVideo,
         reactionFile: File,
-        corner: ReactionCorner,
-        audioMode: ReactionAudioMode,
-        isSwapped: Boolean,
+        arrangement: DualLayout,
+        audioMode: DualAudioMode,
+        reactionFullScreen: Boolean,
         onProgress: (Int) -> Unit,
     ): File {
         val reactionUri = Uri.fromFile(reactionFile)
         val reactionDurationUs = withContext(Dispatchers.IO) { readDurationUs(reactionUri) }
         check(reactionDurationUs > 0) { "Reaction recording is empty" }
 
-        val backgroundSource = Source(background.uri, background.durationUs, audioMode.keepsBackground)
-        val reactionSource = Source(reactionUri, reactionDurationUs, audioMode.keepsReaction)
-        val (windowSource, fullSource) = if (isSwapped) {
-            backgroundSource to reactionSource
-        } else {
-            reactionSource to backgroundSource
+        val backgroundSource = Source(background.uri, background.durationUs, audioMode.keepsMain)
+        val reactionSource = Source(reactionUri, reactionDurationUs, audioMode.keepsSecondary)
+        val (canvasWidth, canvasHeight) = when (arrangement) {
+            DualLayout.SplitVertical -> SPLIT_HALF_WIDTH to SPLIT_HALF_HEIGHT
+            DualLayout.SplitHorizontal -> (2 * SPLIT_HALF_WIDTH) to SPLIT_HALF_HEIGHT
+            else -> background.width to background.height
+        }
+        return export(
+            canvasWidth = canvasWidth,
+            canvasHeight = canvasHeight,
+            full = if (reactionFullScreen) reactionSource else backgroundSource,
+            window = if (reactionFullScreen) backgroundSource else reactionSource,
+            windowAspectRatio = ReactionLayout.windowAspectRatio(reactionFullScreen, background),
+            arrangement = arrangement,
+            onProgress = onProgress,
+        )
+    }
+
+    /**
+     * Exports [full] (the first video) and [window] (the second) placed by [arrangement] in a
+     * [canvasWidth] x [canvasHeight] frame into a temporary MP4 in the cache dir and returns it;
+     * the caller owns the file. [onProgress] receives 0..100 on the main thread.
+     */
+    private suspend fun export(
+        canvasWidth: Int,
+        canvasHeight: Int,
+        full: Source,
+        window: Source,
+        windowAspectRatio: Float,
+        arrangement: DualLayout,
+        onProgress: (Int) -> Unit,
+    ): File {
+        // A sequence that asks for audio needs an audio track in its video.
+        val (fullSource, windowSource) = withContext(Dispatchers.IO) {
+            full.withAvailableAudio() to window.withAvailableAudio()
         }
 
         // The window video drives the timeline: hold its last frame if it ends first.
@@ -112,22 +151,22 @@ class ReactionExporter(private val context: Context) {
             null
         }
 
-        val output = File(context.cacheDir, "reaction_${System.nanoTime()}.mp4")
+        val output = File(context.cacheDir, "overlay_${System.nanoTime()}.mp4")
         try {
             val composition = buildComposition(
-                canvasWidth = background.width,
-                canvasHeight = background.height,
-                windowAspectRatio = ReactionLayout.windowAspectRatio(isSwapped, background),
+                canvasWidth = canvasWidth,
+                canvasHeight = canvasHeight,
+                windowAspectRatio = windowAspectRatio,
                 windowSource = windowSource,
                 windowLastFrame = lastFrame?.let { it to holdUs },
                 fullSource = fullSource,
-                corner = corner,
+                arrangement = arrangement,
             )
             Log.i(
                 TAG,
-                "Export: swapped=$isSwapped, corner=$corner, audio=$audioMode, " +
-                    "background=${background.durationUs / 1000} ms, " +
-                    "reaction=${reactionDurationUs / 1000} ms, holdWindow=${lastFrame != null}",
+                "Export: arrangement=$arrangement, full=${fullSource.durationUs / 1000} ms " +
+                    "(audio=${fullSource.keepAudio}), window=${windowSource.durationUs / 1000} ms " +
+                    "(audio=${windowSource.keepAudio}), holdWindow=${lastFrame != null}",
             )
             runTransformer(composition, output, onProgress)
             return output
@@ -138,6 +177,9 @@ class ReactionExporter(private val context: Context) {
             lastFrame?.delete()
         }
     }
+
+    private fun Source.withAvailableAudio(): Source =
+        if (keepAudio && !hasAudio(uri)) Source(uri, durationUs, keepAudio = false) else this
 
     /** Runs the export; Transformer must be created and used on one Looper thread (main). */
     private suspend fun runTransformer(
@@ -198,17 +240,22 @@ class ReactionExporter(private val context: Context) {
         windowSource: Source,
         windowLastFrame: Pair<File, Long>?,
         fullSource: Source,
-        corner: ReactionCorner,
+        arrangement: DualLayout,
     ): Composition {
         val output = outputSize(canvasWidth, canvasHeight)
-        val (windowWidth, windowHeight) = ReactionLayout.windowSize(
+        val (fullRect, windowRect) = ReactionLayout.slots(
             output.width.toFloat(),
             output.height.toFloat(),
+            arrangement,
             windowAspectRatio,
         )
-        val windowSize = Size(windowWidth.toEven(), windowHeight.toEven())
-        val margin = ReactionLayout.margin(output.width.toFloat())
-        Log.i(TAG, "Output ${output.width}x${output.height}, window ${windowSize.width}x${windowSize.height}")
+        val fullSize = fullRect.evenSize()
+        val windowSize = windowRect.evenSize()
+        Log.i(
+            TAG,
+            "Output ${output.width}x${output.height}, first ${fullSize.width}x${fullSize.height}, " +
+                "second ${windowSize.width}x${windowSize.height}",
+        )
 
         // Sequence 0 (on top, drives the timeline): the window video, then its held last frame.
         val windowPresentation = Presentation.createForWidthAndHeight(
@@ -225,10 +272,10 @@ class ReactionExporter(private val context: Context) {
             }
             .build()
 
-        // Sequence 1: the full-frame video (keeps its last frame by itself if shorter).
+        // Sequence 1: the first video (keeps its last frame by itself if shorter).
         val fullPresentation = Presentation.createForWidthAndHeight(
-            output.width,
-            output.height,
+            fullSize.width,
+            fullSize.height,
             Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP,
         )
         val fullSequence = EditedMediaItemSequence.Builder(trackTypes(fullSource.keepAudio))
@@ -236,7 +283,7 @@ class ReactionExporter(private val context: Context) {
             .build()
 
         return Composition.Builder(windowSequence, fullSequence)
-            .setVideoCompositorSettings(ReactionCompositorSettings(output, corner, margin))
+            .setVideoCompositorSettings(ReactionCompositorSettings(output, fullRect, windowRect))
             .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
             .build()
     }
@@ -265,24 +312,23 @@ class ReactionExporter(private val context: Context) {
             .setEffects(Effects(emptyList(), listOf(presentation)))
             .build()
 
-    /** Places input 0 in its corner window; input 1 fills the frame. */
+    /** Places input 0 (second video) in [windowRect] and input 1 (first video) in [fullRect]. */
     private class ReactionCompositorSettings(
         private val outputSize: Size,
-        corner: ReactionCorner,
-        marginPx: Float,
+        fullRect: ReactionRect,
+        windowRect: ReactionRect,
     ) : VideoCompositorSettings {
-        private val windowSettings: OverlaySettings
-        private val fullSettings = StaticOverlaySettings.Builder().build()
+        private val windowSettings = placedAt(windowRect)
+        private val fullSettings = placedAt(fullRect)
 
-        init {
+        /** Pins the input's top-left corner to the rect's top-left corner (inputs are pre-sized). */
+        private fun placedAt(rect: ReactionRect): OverlaySettings {
             // NDC: x -1 (left) .. 1 (right), y -1 (bottom) .. 1 (top).
-            val x = if (corner.isStart) -1f else 1f
-            val y = if (corner.isTop) 1f else -1f
-            val insetX = 1f - 2f * marginPx / outputSize.width
-            val insetY = 1f - 2f * marginPx / outputSize.height
-            windowSettings = StaticOverlaySettings.Builder()
-                .setOverlayFrameAnchor(x, y)
-                .setBackgroundFrameAnchor(x * insetX, y * insetY)
+            val x = 2f * rect.left.roundToInt() / outputSize.width - 1f
+            val y = 1f - 2f * rect.top.roundToInt() / outputSize.height
+            return StaticOverlaySettings.Builder()
+                .setOverlayFrameAnchor(-1f, 1f)
+                .setBackgroundFrameAnchor(x, y)
                 .build()
         }
 
@@ -313,8 +359,14 @@ class ReactionExporter(private val context: Context) {
 
     private fun Float.toEven(): Int = max(2, (this / 2f).roundToInt() * 2)
 
+    private fun ReactionRect.evenSize() = Size(width.toEven(), height.toEven())
+
     private fun readDurationUs(uri: Uri): Long = withRetriever(uri) {
         (extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) * 1000
+    }
+
+    private fun hasAudio(uri: Uri): Boolean = withRetriever(uri) {
+        extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes"
     }
 
     /** Saves the (upright) last frame of [source] as a JPEG in the cache dir. */

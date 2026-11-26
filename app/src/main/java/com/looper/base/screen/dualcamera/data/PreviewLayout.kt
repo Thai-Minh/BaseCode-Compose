@@ -1,26 +1,6 @@
 package com.looper.base.screen.dualcamera.data
 
-/** How the two camera feeds are arranged, on screen and in saved photos / videos. */
-enum class DualLayout {
-    /** Two equal halves: main on top, second at the bottom. */
-    SplitVertical,
-
-    /**
-     * Two equal halves side by side: main on the left, second on the right. Together they fill
-     * the width; each half keeps [PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO] and the pair is
-     * vertically centered.
-     */
-    SplitHorizontal,
-
-    /** Main full screen, second as a small window in a corner. */
-    PipTopStart,
-    PipTopEnd,
-    PipBottomStart,
-    PipBottomEnd;
-
-    val isPip: Boolean
-        get() = this != SplitVertical && this != SplitHorizontal
-}
+import com.looper.base.screen.common.data.DualLayout
 
 /** Rectangle in pixels, relative to the viewport's top-left corner. */
 data class LayoutRect(
@@ -67,7 +47,10 @@ data class PreviewLayout(
     }
 
     companion object {
-        /** Width / height of each half in [DualLayout.SplitHorizontal]: the camera's portrait frame. */
+        /**
+         * Width / height of each half in [DualLayout.SplitHorizontal]: the camera's portrait
+         * frame. Together the halves fill the width and the pair is vertically centered.
+         */
         const val SPLIT_HORIZONTAL_ASPECT_RATIO = 9f / 16f
 
         /** PiP width relative to the viewport width. */

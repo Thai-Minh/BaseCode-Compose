@@ -87,7 +87,7 @@ import com.looper.base.screen.dualcamera.data.DualCameraEffect
 import com.looper.base.screen.dualcamera.data.DualCameraSupport
 import com.looper.base.screen.dualcamera.data.DualCameraUiState
 import com.looper.base.screen.dualcamera.data.DualCaptureMode
-import com.looper.base.screen.dualcamera.data.DualLayout
+import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.dualcamera.data.LayoutRect
 import com.looper.base.screen.dualcamera.data.PreviewLayout
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -380,8 +380,8 @@ private fun DualFeedLayout(
 private fun BoxWithConstraintsScope.pipPlacement(layout: DualLayout, bottomReserved: Dp): Modifier {
     val pipWidth = maxWidth * PreviewLayout.PIP_WIDTH_FRACTION
     val margin = maxWidth * PreviewLayout.PIP_MARGIN_FRACTION
-    val isTop = layout == DualLayout.PipTopStart || layout == DualLayout.PipTopEnd
-    val isStart = layout == DualLayout.PipTopStart || layout == DualLayout.PipBottomStart
+    val isTop = layout.isTop
+    val isStart = layout.isStart
     val alignment = when {
         isTop && isStart -> Alignment.TopStart
         isTop -> Alignment.TopEnd
@@ -581,8 +581,8 @@ private fun LayoutDiagram(layout: DualLayout, color: Color, modifier: Modifier =
             else -> {
                 drawRect(faded, Offset(left, top), Size(width, height))
                 val pip = Size(width * 0.45f, width * 0.45f / PreviewLayout.PIP_ASPECT_RATIO)
-                val isTop = layout == DualLayout.PipTopStart || layout == DualLayout.PipTopEnd
-                val isStart = layout == DualLayout.PipTopStart || layout == DualLayout.PipBottomStart
+                val isTop = layout.isTop
+                val isStart = layout.isStart
                 val margin = 1.5.dp.toPx()
                 // Mirror Start/End for RTL like the real layout does.
                 val onLeft = isStart == (layoutDirection == LayoutDirection.Ltr)

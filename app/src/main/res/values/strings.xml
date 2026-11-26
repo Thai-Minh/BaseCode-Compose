@@ -92,6 +92,7 @@
     <!-- Splash -->
     <string name="splash_open_dual_camera">Dual camera</string>
     <string name="splash_open_reaction">Reaction video</string>
+    <string name="splash_open_combiner">Video combiner</string>
 
     <!-- Reaction -->
     <string name="reaction_back">Back</string>
@@ -106,6 +107,8 @@
     <string name="reaction_corner_top_end">Reaction top right</string>
     <string name="reaction_corner_bottom_start">Reaction bottom left</string>
     <string name="reaction_corner_bottom_end">Reaction bottom right</string>
+    <string name="reaction_layout_split_vertical">Split top and bottom</string>
+    <string name="reaction_layout_split_horizontal">Split side by side</string>
     <string name="reaction_audio_background">Original</string>
     <string name="reaction_audio_reaction">Reaction</string>
     <string name="reaction_audio_both">Both</string>
@@ -116,5 +119,29 @@
     <string name="reaction_background_failed">Couldn\'t open this video</string>
     <string name="reaction_camera_failed">Couldn\'t open the front camera</string>
     <string name="reaction_camera_permission_denied">Camera access is needed to record your reaction</string>
+
+    <!-- Video combiner -->
+    <string name="combiner_back">Back</string>
+    <string name="combiner_select_main">Select Background Video</string>
+    <string name="combiner_change_main">Change video</string>
+    <string name="combiner_select_overlay">Select Overlay Video</string>
+    <string name="combiner_change_overlay">Change overlay video</string>
+    <string name="combiner_swap_videos">Swap video positions</string>
+    <string name="combiner_corner_top_start">Overlay top left</string>
+    <string name="combiner_corner_top_end">Overlay top right</string>
+    <string name="combiner_corner_bottom_start">Overlay bottom left</string>
+    <string name="combiner_corner_bottom_end">Overlay bottom right</string>
+    <string name="combiner_layout_split_vertical">Split top and bottom</string>
+    <string name="combiner_layout_split_horizontal">Split side by side</string>
+    <string name="combiner_audio_main">Original</string>
+    <string name="combiner_audio_overlay">Overlay</string>
+    <string name="combiner_audio_both">Both</string>
+    <string name="combiner_saving">Saving video… %1$d%%</string>
+    <string name="combiner_video_failed">Couldn\'t open this video</string>
+    <string name="combiner_play_preview">Play preview</string>
+    <string name="combiner_pause_preview">Pause preview</string>
+    <string name="combiner_combine">Combine</string>
+    <string name="combiner_saved">Combined video saved to gallery</string>
+    <string name="combiner_export_failed">Couldn\'t save the combined video</string>
 
 </resources>

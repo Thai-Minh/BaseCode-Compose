@@ -22,6 +22,7 @@ import com.looper.base.R
 fun SplashScreen(
     onOpenDualCamera: () -> Unit,
     onOpenReaction: () -> Unit,
+    onOpenCombiner: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -33,6 +34,7 @@ fun SplashScreen(
     ) {
         SplashButton(text = stringResource(R.string.splash_open_dual_camera), onClick = onOpenDualCamera)
         SplashButton(text = stringResource(R.string.splash_open_reaction), onClick = onOpenReaction)
+        SplashButton(text = stringResource(R.string.splash_open_combiner), onClick = onOpenCombiner)
     }
 }
 

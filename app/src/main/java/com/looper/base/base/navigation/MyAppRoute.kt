@@ -22,3 +22,6 @@ object DualCameraInput
 
 @Serializable
 object ReactionInput
+
+@Serializable
+object CombinerInput

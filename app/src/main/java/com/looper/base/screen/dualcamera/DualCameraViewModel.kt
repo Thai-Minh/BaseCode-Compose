@@ -38,7 +38,7 @@ import com.looper.base.screen.dualcamera.data.DualCameraEffect
 import com.looper.base.screen.dualcamera.data.DualCameraSupport
 import com.looper.base.screen.dualcamera.data.DualCameraUiState
 import com.looper.base.screen.dualcamera.data.DualCaptureMode
-import com.looper.base.screen.dualcamera.data.DualLayout
+import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.dualcamera.data.PreviewLayout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -70,7 +70,7 @@ private const val TAG = "DualCameraViewModel"
  */
 /**
  * false: always use the Camera2 pipeline (Camera2Viewfinder + DualVideoRecorder), which renders
- * every [com.looper.base.screen.dualcamera.data.DualLayout] identically in preview, photo and
+ * every [DualLayout] identically in preview, photo and
  * video. On devices with concurrent camera support both cameras stream with it too.
  * true: use CameraX ConcurrentCamera when supported; its composition video can only offset /
  * scale the second camera, so videos won't match the selected layout.

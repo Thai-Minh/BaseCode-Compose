@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.pm.PackageManager
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 import androidx.camera.core.AspectRatio
@@ -31,10 +30,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.looper.base.R
+import com.looper.base.screen.common.data.DualAudioMode
+import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.dualcamera.DualCameraMedia
-import com.looper.base.screen.reaction.data.BackgroundVideo
-import com.looper.base.screen.reaction.data.ReactionAudioMode
-import com.looper.base.screen.reaction.data.ReactionCorner
+import com.looper.base.screen.reaction.data.PickedVideo
 import com.looper.base.screen.reaction.data.ReactionEffect
 import com.looper.base.screen.reaction.data.ReactionUiState
 import kotlinx.coroutines.CancellationException
@@ -72,7 +71,9 @@ class ReactionViewModel(
         field = MutableStateFlow(null)
 
     /** Plays the background video on screen (the export reads the file again, untouched). */
-    val player: ExoPlayer = ExoPlayer.Builder(app).build()
+    val player: ExoPlayer = ExoPlayer.Builder(app).build().apply {
+        addListener(ReactionFrameRedrawer(this))
+    }
 
     private val exporter = ReactionExporter(app)
     private var videoCapture: VideoCapture<Recorder>? = null
@@ -84,7 +85,7 @@ class ReactionViewModel(
     fun onBackgroundPicked(uri: Uri?) {
         if (uri == null || !uiState.value.canEdit) return
         viewModelScope.launch {
-            val video = withContext(Dispatchers.IO) { runCatching { readVideo(uri) }.getOrNull() }
+            val video = withContext(Dispatchers.IO) { PickedVideo.read(app, uri) }
             if (video == null) {
                 effects.emit(ReactionEffect.Error(R.string.reaction_background_failed))
                 return@launch
@@ -108,18 +109,18 @@ class ReactionViewModel(
         uiState.update { it.copy(useFrontCamera = !it.useFrontCamera) }
     }
 
-    /** Background full frame + reaction window <-> reaction full frame + background window. */
+    /** Exchanges the background's and the reaction's places in the current arrangement. */
     fun onSwapClick() {
         if (!uiState.value.canSwap) return
         uiState.update { it.copy(reactionWindowFullScreen = !it.reactionWindowFullScreen) }
     }
 
-    fun onCornerSelected(corner: ReactionCorner) {
+    fun onArrangementSelected(arrangement: DualLayout) {
         if (!uiState.value.canEdit) return
-        uiState.update { it.copy(corner = corner) }
+        uiState.update { it.copy(arrangement = arrangement) }
     }
 
-    fun onAudioModeSelected(mode: ReactionAudioMode) {
+    fun onAudioModeSelected(mode: DualAudioMode) {
         if (!uiState.value.canEdit) return
         uiState.update { it.copy(audioMode = mode) }
     }
@@ -291,12 +292,12 @@ class ReactionViewModel(
         uiState.update { it.copy(isExporting = true, exportProgress = 0) }
         viewModelScope.launch {
             try {
-                val output = exporter.export(
+                val output = exporter.exportReaction(
                     background = background,
                     reactionFile = reactionFile,
-                    corner = state.corner,
+                    arrangement = state.arrangement,
                     audioMode = state.audioMode,
-                    isSwapped = state.reactionWindowFullScreen,
+                    reactionFullScreen = state.reactionWindowFullScreen,
                     onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
                 )
                 val uri = withContext(Dispatchers.IO) {
@@ -321,30 +322,6 @@ class ReactionViewModel(
     }
 
     // endregion
-
-    private fun readVideo(uri: Uri): BackgroundVideo? = MediaMetadataRetriever().run {
-        try {
-            setDataSource(app, uri)
-            val width = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-                ?.toIntOrNull() ?: return null
-            val height = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-                ?.toIntOrNull() ?: return null
-            val rotation = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
-                ?.toIntOrNull() ?: 0
-            val durationMs = extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                ?.toLongOrNull() ?: return null
-            if (width <= 0 || height <= 0 || durationMs <= 0) return null
-            val sideways = rotation % 180 != 0
-            BackgroundVideo(
-                uri = uri,
-                width = if (sideways) height else width,
-                height = if (sideways) width else height,
-                durationUs = durationMs * 1000,
-            )
-        } finally {
-            release()
-        }
-    }
 
     private fun hasAudioPermission() =
         ContextCompat.checkSelfPermission(app, Manifest.permission.RECORD_AUDIO) ==

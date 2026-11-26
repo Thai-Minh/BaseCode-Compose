@@ -7,6 +7,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import com.looper.base.base.navigation.child.combinerNavGraph
 import com.looper.base.base.navigation.child.dualCameraNavGraph
 import com.looper.base.base.navigation.child.languageNavGraph
 import com.looper.base.base.navigation.child.reactionNavGraph
@@ -27,6 +28,8 @@ fun MyAppNavGraph(
             dualCameraNavGraph(navController = navController)
 
             reactionNavGraph(navController = navController)
+
+            combinerNavGraph(navController = navController)
         }
     )
 }
