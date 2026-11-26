@@ -35,6 +35,7 @@ import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.dualcamera.DualCameraMedia
 import com.looper.base.screen.reaction.data.PickedVideo
 import com.looper.base.screen.reaction.data.ReactionEffect
+import com.looper.base.screen.reaction.data.ReactionLayout
 import com.looper.base.screen.reaction.data.ReactionUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +77,9 @@ class ReactionViewModel(
     }
 
     private val exporter = ReactionExporter(app)
+
+    /** Width / height of the preview stage: the PiP canvas, reused by the export. */
+    private var stageAspectRatio = ReactionLayout.ASPECT_RATIO
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
     private var recordingFile: File? = null
@@ -113,6 +117,11 @@ class ReactionViewModel(
     fun onSwapClick() {
         if (!uiState.value.canSwap) return
         uiState.update { it.copy(reactionWindowFullScreen = !it.reactionWindowFullScreen) }
+    }
+
+    /** The preview stage was measured; PiP exports use the same canvas shape. */
+    fun onStageSizeChanged(width: Int, height: Int) {
+        if (width > 0 && height > 0) stageAspectRatio = width.toFloat() / height
     }
 
     fun onArrangementSelected(arrangement: DualLayout) {
@@ -298,6 +307,7 @@ class ReactionViewModel(
                     arrangement = state.arrangement,
                     audioMode = state.audioMode,
                     reactionFullScreen = state.reactionWindowFullScreen,
+                    pipCanvasAspectRatio = stageAspectRatio,
                     onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
                 )
                 val uri = withContext(Dispatchers.IO) {

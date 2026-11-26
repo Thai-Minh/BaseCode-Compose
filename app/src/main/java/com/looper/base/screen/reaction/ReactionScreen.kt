@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -150,7 +151,8 @@ fun ReactionScreen(
                 onPickReaction = openReactionCamera,
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .onSizeChanged { viewModel.onStageSizeChanged(it.width, it.height) },
             )
             if (uiState.isReadyToRecord) {
                 ReactionControls(
@@ -218,8 +220,9 @@ private fun TopBar(
 }
 
 /**
- * The canvas: in PiP layouts the background video's aspect ratio, one video filling it and the
- * other in a corner window; in split layouts a fixed frame with one video per half. Uses
+ * The canvas: in PiP layouts the whole stage, the full-frame camera filling it or the full-frame
+ * video fitted at its original aspect ratio (black bands), and the other one in a corner window
+ * 1/3 of the width; in split layouts a fixed frame with one video per half. Uses
  * [ReactionLayout] so the exported video has the same geometry.
  *
  * Both slots stay at fixed positions in the composition and only their modifiers change on swap
@@ -239,11 +242,14 @@ private fun ReactionStage(
         val stageModifier = state.canvasAspectRatio
             ?.let { Modifier.aspectRatio(it) }
             ?: Modifier.fillMaxSize()
-        BoxWithConstraints(modifier = stageModifier) {
+        // Bands around a fitted video are black, as in the exported video.
+        val stageBackground = if (background != null) Modifier.background(Color.Black) else Modifier
+        BoxWithConstraints(modifier = stageModifier.then(stageBackground)) {
             val (firstRect, secondRect) = ReactionLayout.slots(
                 canvasWidth = constraints.maxWidth.toFloat(),
                 canvasHeight = constraints.maxHeight.toFloat(),
                 arrangement = state.arrangement,
+                fullAspectRatio = state.fullAspectRatio,
                 windowAspectRatio = state.windowAspectRatio,
             )
             val density = LocalDensity.current

@@ -54,6 +54,12 @@ private const val MAX_OUTPUT_SHORT_SIDE = 1080
 private const val SPLIT_HALF_WIDTH = 1080
 private const val SPLIT_HALF_HEIGHT = 1920
 
+/**
+ * Width of the PiP canvas when the camera is full frame (the stage's aspect ratio), before
+ * scaling to the output limits.
+ */
+private const val PIP_CAMERA_CANVAS_WIDTH = 1080
+
 /** Shorter differences are not worth a held frame (it would last a frame or two). */
 private const val MIN_HOLD_US = 50_000L
 
@@ -64,10 +70,11 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
 
 /**
  * Composites the background video and the reaction recording like the preview, in a
- * [DualLayout]: one fills the frame and the other sits in a corner window (1/3 of the
- * width; 9:16 for the camera, the video's own aspect ratio for the background), or each fills a
- * half of the frame (center-cropped). The output lasts as long as the longer video; the one that
- * ends first keeps showing its last frame until the end.
+ * [DualLayout] (geometry from [ReactionLayout]): in PiP layouts the frame is the full-frame
+ * video (its own size and aspect ratio) or the full-frame camera (the preview stage's aspect
+ * ratio), with the other one in a corner window 1/3 of its width; in the split layouts each fills
+ * a half of the frame (center-cropped). The output lasts as long as the longer
+ * video; the one that ends first keeps showing its last frame until the end.
  *
  * Built on Media3 Transformer. With several video sequences its compositor draws the first
  * sequence on top and takes the output timeline from it, so:
@@ -91,8 +98,9 @@ class ReactionExporter(private val context: Context) {
 
     /**
      * Reaction export: the background and the camera recording, swapped when
-     * [reactionFullScreen]. PiP layouts keep the background's size; the window is 9:16 for the
-     * camera and the background's own aspect ratio when the background is in it.
+     * [reactionFullScreen]. PiP layouts keep only the full-frame area of the preview: the
+     * background's size when it is full frame, else [pipCanvasAspectRatio] (the preview stage's
+     * width / height, which the camera fills).
      */
     suspend fun exportReaction(
         background: PickedVideo,
@@ -100,6 +108,7 @@ class ReactionExporter(private val context: Context) {
         arrangement: DualLayout,
         audioMode: DualAudioMode,
         reactionFullScreen: Boolean,
+        pipCanvasAspectRatio: Float,
         onProgress: (Int) -> Unit,
     ): File {
         val reactionUri = Uri.fromFile(reactionFile)
@@ -111,13 +120,19 @@ class ReactionExporter(private val context: Context) {
         val (canvasWidth, canvasHeight) = when (arrangement) {
             DualLayout.SplitVertical -> SPLIT_HALF_WIDTH to SPLIT_HALF_HEIGHT
             DualLayout.SplitHorizontal -> (2 * SPLIT_HALF_WIDTH) to SPLIT_HALF_HEIGHT
-            else -> background.width to background.height
+            else -> if (reactionFullScreen) {
+                PIP_CAMERA_CANVAS_WIDTH to
+                    (PIP_CAMERA_CANVAS_WIDTH / pipCanvasAspectRatio).roundToInt()
+            } else {
+                background.width to background.height
+            }
         }
         return export(
             canvasWidth = canvasWidth,
             canvasHeight = canvasHeight,
             full = if (reactionFullScreen) reactionSource else backgroundSource,
             window = if (reactionFullScreen) backgroundSource else reactionSource,
+            fullAspectRatio = ReactionLayout.fullAspectRatio(reactionFullScreen, background),
             windowAspectRatio = ReactionLayout.windowAspectRatio(reactionFullScreen, background),
             arrangement = arrangement,
             onProgress = onProgress,
@@ -134,6 +149,7 @@ class ReactionExporter(private val context: Context) {
         canvasHeight: Int,
         full: Source,
         window: Source,
+        fullAspectRatio: Float?,
         windowAspectRatio: Float,
         arrangement: DualLayout,
         onProgress: (Int) -> Unit,
@@ -156,6 +172,7 @@ class ReactionExporter(private val context: Context) {
             val composition = buildComposition(
                 canvasWidth = canvasWidth,
                 canvasHeight = canvasHeight,
+                fullAspectRatio = fullAspectRatio,
                 windowAspectRatio = windowAspectRatio,
                 windowSource = windowSource,
                 windowLastFrame = lastFrame?.let { it to holdUs },
@@ -236,6 +253,7 @@ class ReactionExporter(private val context: Context) {
     private fun buildComposition(
         canvasWidth: Int,
         canvasHeight: Int,
+        fullAspectRatio: Float?,
         windowAspectRatio: Float,
         windowSource: Source,
         windowLastFrame: Pair<File, Long>?,
@@ -247,6 +265,7 @@ class ReactionExporter(private val context: Context) {
             output.width.toFloat(),
             output.height.toFloat(),
             arrangement,
+            fullAspectRatio,
             windowAspectRatio,
         )
         val fullSize = fullRect.evenSize()

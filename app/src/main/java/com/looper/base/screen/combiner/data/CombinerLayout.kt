@@ -23,7 +23,7 @@ object CombinerLayout {
      * Canvas width / height for videos of [firstAspectRatio] and [secondAspectRatio]
      * (width / height):
      * - PiP: the first video's;
-     * - split vertical: both stacked at the same width;
+     * - split vertical: each video in half of the height, as wide as the wider one;
      * - split horizontal: each video in half of the width, as tall as the taller one.
      */
     fun canvasAspectRatio(
@@ -31,15 +31,15 @@ object CombinerLayout {
         firstAspectRatio: Float,
         secondAspectRatio: Float,
     ): Float = when (arrangement) {
-        DualLayout.SplitVertical -> 1f / (1f / firstAspectRatio + 1f / secondAspectRatio)
+        DualLayout.SplitVertical -> maxOf(firstAspectRatio, secondAspectRatio) / 2
         DualLayout.SplitHorizontal -> 2 * minOf(firstAspectRatio, secondAspectRatio)
         else -> firstAspectRatio
     }
 
     /**
      * Where the first and the second video go in a [canvasWidth] x [canvasHeight] canvas of
-     * [canvasAspectRatio]: each slot has its video's aspect ratio. In split horizontal each slot
-     * is half of the width, vertically centered (the shorter video gets empty bands).
+     * [canvasAspectRatio]: each slot has its video's aspect ratio. In the split layouts each slot
+     * is half of the canvas, centered across it (the narrower / shorter video gets empty bands).
      */
     fun slots(
         canvasWidth: Float,
@@ -49,9 +49,11 @@ object CombinerLayout {
         secondAspectRatio: Float,
     ): Pair<CombinerRect, CombinerRect> = when (arrangement) {
         DualLayout.SplitVertical -> {
-            val firstHeight = canvasWidth / firstAspectRatio
-            CombinerRect(0f, 0f, canvasWidth, firstHeight) to
-                CombinerRect(0f, firstHeight, canvasWidth, canvasHeight - firstHeight)
+            val half = canvasHeight / 2
+            val firstWidth = (half * firstAspectRatio).coerceAtMost(canvasWidth)
+            val secondWidth = ((canvasHeight - half) * secondAspectRatio).coerceAtMost(canvasWidth)
+            CombinerRect((canvasWidth - firstWidth) / 2, 0f, firstWidth, half) to
+                CombinerRect((canvasWidth - secondWidth) / 2, half, secondWidth, canvasHeight - half)
         }
 
         DualLayout.SplitHorizontal -> {

@@ -208,8 +208,8 @@ private fun CombinerStage(
         val stageModifier = state.canvasAspectRatio
             ?.let { Modifier.aspectRatio(it) }
             ?: Modifier.fillMaxSize()
-        // Empty bands next to the shorter video are black, as in the exported video.
-        val stageBackground = if (state.arrangement == DualLayout.SplitHorizontal) {
+        // Empty bands next to the narrower / shorter video are black, as in the exported video.
+        val stageBackground = if (!state.arrangement.isPip) {
             Modifier.background(Color.Black)
         } else {
             Modifier

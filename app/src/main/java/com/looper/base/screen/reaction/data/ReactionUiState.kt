@@ -34,7 +34,11 @@ data class ReactionUiState(
     val windowAspectRatio: Float
         get() = ReactionLayout.windowAspectRatio(reactionWindowFullScreen, background)
 
-    /** Width / height of the whole canvas, or null to fill the available space. */
+    /** Width / height of the full-frame video in PiP layouts, or null when it fills the frame. */
+    val fullAspectRatio: Float?
+        get() = ReactionLayout.fullAspectRatio(reactionWindowFullScreen, background)
+
+    /** Width / height of the whole canvas, or null to fill the stage (PiP layouts). */
     val canvasAspectRatio: Float?
-        get() = ReactionLayout.canvasAspectRatio(arrangement, background)
+        get() = ReactionLayout.splitCanvasAspectRatio(arrangement)
 }

@@ -50,10 +50,10 @@ private const val MAX_OUTPUT_LONG_SIDE = 1920
 private const val MAX_OUTPUT_SHORT_SIDE = 1080
 
 /**
- * Width of each video in the split layouts (stacked: both, side by side: each half), before
+ * Size of each half in the split layouts (stacked: its height, side by side: its width), before
  * scaling to the output limits.
  */
-private const val SPLIT_SHARED_SIDE = 1080
+private const val SPLIT_HALF_SIDE = 1080
 
 /** Shorter differences are not worth a held frame (it would last a frame or two). */
 private const val MIN_HOLD_US = 50_000L
@@ -109,11 +109,10 @@ class CombinerExporter(private val context: Context) {
             CombinerLayout.canvasAspectRatio(arrangement, firstAspectRatio, windowAspectRatio)
         val (frameWidth, frameHeight) = when (arrangement) {
             DualLayout.SplitVertical ->
-                SPLIT_SHARED_SIDE to (SPLIT_SHARED_SIDE / canvasAspectRatio).roundToInt()
+                (2 * SPLIT_HALF_SIDE * canvasAspectRatio).roundToInt() to (2 * SPLIT_HALF_SIDE)
 
-            // Each video gets a half as wide as the shared side.
             DualLayout.SplitHorizontal ->
-                (2 * SPLIT_SHARED_SIDE) to (2 * SPLIT_SHARED_SIDE / canvasAspectRatio).roundToInt()
+                (2 * SPLIT_HALF_SIDE) to (2 * SPLIT_HALF_SIDE / canvasAspectRatio).roundToInt()
 
             else -> firstWidth to firstHeight
         }
