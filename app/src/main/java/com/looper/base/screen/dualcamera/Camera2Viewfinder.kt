@@ -62,6 +62,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "Camera2Viewfinder"
 
@@ -133,11 +134,11 @@ class Camera2CameraHandle {
         if (streamInfo == null) throw CameraUnavailableException("Camera is not streaming")
         stillMode.value = true
         try {
-            val block = withTimeoutOrNull(STILL_SESSION_TIMEOUT_MS) {
+            val block = withTimeoutOrNull(STILL_SESSION_TIMEOUT_MS.milliseconds) {
                 capture.filterNotNull().first()
             } ?: throw CameraUnavailableException("Still capture session not ready")
             // Let auto exposure / focus settle on the freshly configured session.
-            delay(STILL_SETTLE_MS)
+            delay(STILL_SETTLE_MS.milliseconds)
             block()
         } finally {
             stillMode.value = false
@@ -255,7 +256,7 @@ fun Camera2Viewfinder(
                                 retries++ < MAX_REOPEN_RETRIES
                             ) {
                                 Log.w(TAG, "Camera $cameraId failed, reopening ($retries)", e)
-                                delay(REOPEN_DELAY_MS)
+                                delay(REOPEN_DELAY_MS.milliseconds)
                                 continue
                             }
                             Log.e(TAG, "Camera $cameraId preview stopped", e)
@@ -509,7 +510,7 @@ private fun CameraDevice.createStillBlock(
     val mutex = Mutex()
     return {
         mutex.withLock {
-            val jpeg = withTimeoutOrNull(STILL_CAPTURE_TIMEOUT_MS) {
+            val jpeg = withTimeoutOrNull(STILL_CAPTURE_TIMEOUT_MS.milliseconds) {
                 session.captureJpeg(device, config.previewSurface, reader)
             } ?: throw CameraUnavailableException("Camera ${config.cameraId} capture timed out")
             withContext(Dispatchers.Default) {

@@ -60,7 +60,7 @@ data class PreviewLayout(
         const val PIP_MARGIN_FRACTION = 0.03f
 
         /** PiP width / height. */
-        const val PIP_ASPECT_RATIO = 3f / 4f
+        const val PIP_ASPECT_RATIO = 9f / 16f
 
         /** PiP corner radius relative to the PiP width. */
         const val PIP_CORNER_FRACTION = 0.1f

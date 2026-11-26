@@ -24,6 +24,8 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withSave
 
 /**
  * Bitmap / MediaStore helpers for the dual camera feature.
@@ -86,7 +88,7 @@ object DualCameraMedia {
         val outWidth = (layout.viewportWidth * toImage).roundToInt().coerceAtLeast(1)
         val outHeight = (layout.viewportHeight * toImage).roundToInt().coerceAtLeast(1)
 
-        val result = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888)
+        val result = createBitmap(outWidth, outHeight)
         val canvas = Canvas(result)
         canvas.drawColor(android.graphics.Color.BLACK)
         drawSlot(canvas, main, layout.main, cornerRadius = 0f, toImage)
@@ -108,23 +110,23 @@ object DualCameraMedia {
             rect.bottom * toImage,
         )
         val corner = cornerRadius * toImage
-        canvas.save()
-        if (corner > 0f) {
-            canvas.clipPath(Path().apply { addRoundRect(dst, corner, corner, Path.Direction.CW) })
-        } else {
-            canvas.clipRect(dst)
+        canvas.withSave {
+            if (corner > 0f) {
+                clipPath(Path().apply { addRoundRect(dst, corner, corner, Path.Direction.CW) })
+            } else {
+                clipRect(dst)
+            }
+            if (bitmap != null) {
+                drawBitmap(
+                    bitmap,
+                    centerCrop(bitmap.width, bitmap.height, dst.width(), dst.height()),
+                    dst,
+                    Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
+                )
+            } else {
+                drawColor(PreviewLayout.FAILED_CAMERA_COLOR)
+            }
         }
-        if (bitmap != null) {
-            canvas.drawBitmap(
-                bitmap,
-                centerCrop(bitmap.width, bitmap.height, dst.width(), dst.height()),
-                dst,
-                Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
-            )
-        } else {
-            canvas.drawColor(PreviewLayout.FAILED_CAMERA_COLOR)
-        }
-        canvas.restore()
     }
 
     /** Output width when no camera delivered a frame and there's no native size to keep. */
