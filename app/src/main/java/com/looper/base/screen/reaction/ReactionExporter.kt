@@ -59,8 +59,8 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
 
 /**
  * Composites the background video and the reaction recording like the preview: one fills the
- * frame, the other sits in a [ReactionCorner] window (1/3 of the width, 9:16), swapped when
- * `isSwapped`. The output lasts as long as the longer video; the one that ends first keeps showing
+ * frame, the other sits in a [ReactionCorner] window (1/3 of the width; 9:16 for the camera, the
+ * video's own aspect ratio for the background), swapped when `isSwapped`. The output lasts as long as the longer video; the one that ends first keeps showing
  * its last frame until the end. Audio follows [ReactionAudioMode].
  *
  * Built on Media3 Transformer. With several video sequences its compositor draws the first
@@ -117,6 +117,7 @@ class ReactionExporter(private val context: Context) {
             val composition = buildComposition(
                 canvasWidth = background.width,
                 canvasHeight = background.height,
+                windowAspectRatio = ReactionLayout.windowAspectRatio(isSwapped, background),
                 windowSource = windowSource,
                 windowLastFrame = lastFrame?.let { it to holdUs },
                 fullSource = fullSource,
@@ -193,6 +194,7 @@ class ReactionExporter(private val context: Context) {
     private fun buildComposition(
         canvasWidth: Int,
         canvasHeight: Int,
+        windowAspectRatio: Float,
         windowSource: Source,
         windowLastFrame: Pair<File, Long>?,
         fullSource: Source,
@@ -202,6 +204,7 @@ class ReactionExporter(private val context: Context) {
         val (windowWidth, windowHeight) = ReactionLayout.windowSize(
             output.width.toFloat(),
             output.height.toFloat(),
+            windowAspectRatio,
         )
         val windowSize = Size(windowWidth.toEven(), windowHeight.toEven())
         val margin = ReactionLayout.margin(output.width.toFloat())

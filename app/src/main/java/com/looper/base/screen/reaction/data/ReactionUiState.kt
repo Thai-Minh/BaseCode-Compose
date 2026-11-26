@@ -40,7 +40,7 @@ data class ReactionUiState(
     /** Front (default) or back camera for the reaction. */
     val useFrontCamera: Boolean = true,
     /** false: background full frame + reaction window; true: the opposite. */
-    val isSwapped: Boolean = false,
+    val reactionWindowFullScreen: Boolean = false,
     val corner: ReactionCorner = ReactionCorner.BottomStart,
     val audioMode: ReactionAudioMode = ReactionAudioMode.Both,
     val isRecording: Boolean = false,
@@ -59,6 +59,10 @@ data class ReactionUiState(
 
     /** Swapping needs both videos (otherwise a placeholder would fill the frame). */
     val canSwap: Boolean get() = isReadyToRecord && canEdit
+
+    /** Width / height of the corner window for the current layout. */
+    val windowAspectRatio: Float
+        get() = ReactionLayout.windowAspectRatio(reactionWindowFullScreen, background)
 }
 
 sealed interface ReactionEffect {
@@ -74,7 +78,7 @@ object ReactionLayout {
     /** Reaction width relative to the background video's width. */
     const val WIDTH_FRACTION = 1f / 3f
 
-    /** Reaction width / height (portrait 9:16). */
+    /** Camera window width / height (portrait 9:16). */
     const val ASPECT_RATIO = 9f / 16f
 
     /** Distance from the background's edges, relative to its width. */
@@ -84,16 +88,27 @@ object ReactionLayout {
     fun margin(mainWidth: Float): Float = mainWidth * MARGIN_FRACTION
 
     /**
-     * Reaction window size (width, height) inside a [mainWidth] x [mainHeight] background:
-     * 1/3 of its width at 9:16, shrunk if a landscape background is too short for it.
+     * Window aspect ratio: the camera is shown at 9:16; the background video (when swapped into
+     * the window) keeps its own aspect ratio.
      */
-    fun windowSize(mainWidth: Float, mainHeight: Float): Pair<Float, Float> {
+    fun windowAspectRatio(isSwapped: Boolean, background: BackgroundVideo?): Float =
+        if (isSwapped && background != null) background.aspectRatio else ASPECT_RATIO
+
+    /**
+     * Window size (width, height) inside a [mainWidth] x [mainHeight] canvas: 1/3 of its width at
+     * [aspectRatio] (width / height), shrunk if the canvas is too short for it.
+     */
+    fun windowSize(
+        mainWidth: Float,
+        mainHeight: Float,
+        aspectRatio: Float = ASPECT_RATIO,
+    ): Pair<Float, Float> {
         var width = mainWidth * WIDTH_FRACTION
-        var height = width / ASPECT_RATIO
+        var height = width / aspectRatio
         val maxHeight = mainHeight - 2 * margin(mainWidth)
         if (height > maxHeight) {
             height = maxHeight
-            width = height * ASPECT_RATIO
+            width = height * aspectRatio
         }
         return width to height
     }

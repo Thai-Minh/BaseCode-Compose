@@ -111,7 +111,7 @@ class ReactionViewModel(
     /** Background full frame + reaction window <-> reaction full frame + background window. */
     fun onSwapClick() {
         if (!uiState.value.canSwap) return
-        uiState.update { it.copy(isSwapped = !it.isSwapped) }
+        uiState.update { it.copy(reactionWindowFullScreen = !it.reactionWindowFullScreen) }
     }
 
     fun onCornerSelected(corner: ReactionCorner) {
@@ -296,7 +296,7 @@ class ReactionViewModel(
                     reactionFile = reactionFile,
                     corner = state.corner,
                     audioMode = state.audioMode,
-                    isSwapped = state.isSwapped,
+                    isSwapped = state.reactionWindowFullScreen,
                     onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
                 )
                 val uri = withContext(Dispatchers.IO) {

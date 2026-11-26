@@ -293,7 +293,8 @@ private fun ReactionStage(
         BoxWithConstraints(modifier = stageModifier) {
             val widthPx = constraints.maxWidth.toFloat()
             val heightPx = constraints.maxHeight.toFloat()
-            val (windowWidth, windowHeight) = ReactionLayout.windowSize(widthPx, heightPx)
+            val (windowWidth, windowHeight) =
+                ReactionLayout.windowSize(widthPx, heightPx, state.windowAspectRatio)
             val margin = ReactionLayout.margin(widthPx)
             val fullSlot = Modifier
                 .fillMaxSize()
@@ -308,7 +309,7 @@ private fun ReactionStage(
 
             // Background video slot.
             Box(
-                modifier = (if (state.isSwapped) windowSlot else fullSlot).clipToBounds(),
+                modifier = (if (state.reactionWindowFullScreen) windowSlot else fullSlot).clipToBounds(),
                 contentAlignment = Alignment.Center,
             ) {
                 if (background != null) {
@@ -328,7 +329,7 @@ private fun ReactionStage(
                 surfaceRequest = surfaceRequest,
                 enabled = state.canEdit,
                 onPickReaction = onPickReaction,
-                modifier = if (state.isSwapped) fullSlot else windowSlot,
+                modifier = if (state.reactionWindowFullScreen) fullSlot else windowSlot,
             )
         }
     }
