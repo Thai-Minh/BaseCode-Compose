@@ -2,6 +2,8 @@ package com.looper.base.screen.reaction.data
 
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
+import com.looper.base.screen.common.data.pipPosition
 
 data class ReactionUiState(
     val background: PickedVideo? = null,
@@ -12,6 +14,8 @@ data class ReactionUiState(
     /** false: background first (full frame / top / left); true: the reaction first. */
     val reactionWindowFullScreen: Boolean = false,
     val arrangement: DualLayout = DualLayout.PipBottomStart,
+    /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
+    val customPipPosition: PipPosition = PipPosition.of(DualLayout.PipBottomStart),
     val audioMode: DualAudioMode = DualAudioMode.Both,
     val isRecording: Boolean = false,
     val recordedDurationMs: Long = 0L,
@@ -37,6 +41,14 @@ data class ReactionUiState(
     /** Width / height of the full-frame video in PiP layouts, or null when it fills the frame. */
     val fullAspectRatio: Float?
         get() = ReactionLayout.fullAspectRatio(reactionWindowFullScreen, background)
+
+    /** Where the PiP window sits: the layout's corner or the custom position. */
+    val pipPosition: PipPosition
+        get() = arrangement.pipPosition(customPipPosition)
+
+    /** The PiP window can be dragged (custom layout, not while recording / saving). */
+    val canMovePip: Boolean
+        get() = arrangement == DualLayout.PipCustom && canEdit
 
     /** Width / height of the whole canvas, or null to fill the stage (PiP layouts). */
     val canvasAspectRatio: Float?

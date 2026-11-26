@@ -1,6 +1,7 @@
 package com.looper.base.screen.reaction.data
 
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 
 /**
  * Geometry of the reaction layouts, shared by the screen and the exporter so the saved video
@@ -69,7 +70,8 @@ object ReactionLayout {
      * Where the first and the second video go in a [canvasWidth] x [canvasHeight] canvas.
      * PiP only: [fullAspectRatio] fits the full-frame video at that aspect ratio (null fills the
      * canvas) and [windowAspectRatio] is the window's width / height (null for the camera
-     * window); the window is placed in a corner of the full-frame area and sized relative to it.
+     * window); the window is sized relative to the full-frame area and placed in it at
+     * [pipPosition] (a corner, or anywhere for [DualLayout.PipCustom]).
      */
     fun slots(
         canvasWidth: Float,
@@ -77,6 +79,7 @@ object ReactionLayout {
         arrangement: DualLayout,
         fullAspectRatio: Float?,
         windowAspectRatio: Float?,
+        pipPosition: PipPosition,
     ): Pair<ReactionRect, ReactionRect> = when (arrangement) {
         DualLayout.SplitVertical -> {
             val half = canvasHeight / 2
@@ -96,18 +99,21 @@ object ReactionLayout {
                 ?: ReactionRect(0f, 0f, canvasWidth, canvasHeight)
             val (width, height) = windowSize(full.width, full.height, windowAspectRatio)
             val margin = margin(full.width)
-            val left = if (arrangement.isStart) {
-                full.left + margin
-            } else {
-                full.left + full.width - margin - width
-            }
-            val top = if (arrangement.isTop) {
-                full.top + margin
-            } else {
-                full.top + full.height - margin - height
-            }
+            val (rangeX, rangeY) = pipRange(full, width, height)
+            val left = full.left + margin + pipPosition.x * rangeX
+            val top = full.top + margin + pipPosition.y * rangeY
             full to ReactionRect(left, top, width, height)
         }
+    }
+
+    /**
+     * How far (pixels) a [windowWidth] x [windowHeight] window can move inside [full] (minus its
+     * margins): the span of [PipPosition] 0..1 on each axis.
+     */
+    fun pipRange(full: ReactionRect, windowWidth: Float, windowHeight: Float): Pair<Float, Float> {
+        val margin = margin(full.width)
+        return (full.width - 2 * margin - windowWidth).coerceAtLeast(0f) to
+            (full.height - 2 * margin - windowHeight).coerceAtLeast(0f)
     }
 
     /** The largest [aspectRatio] rect centered in a [canvasWidth] x [canvasHeight] canvas. */

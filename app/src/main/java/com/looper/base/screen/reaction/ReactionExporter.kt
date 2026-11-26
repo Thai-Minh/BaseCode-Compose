@@ -29,6 +29,7 @@ import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import com.looper.base.screen.reaction.data.PickedVideo
 import com.looper.base.screen.reaction.data.ReactionLayout
 import com.looper.base.screen.reaction.data.ReactionRect
@@ -111,6 +112,7 @@ class ReactionExporter(private val context: Context) {
         audioMode: DualAudioMode,
         reactionFullScreen: Boolean,
         pipCanvasAspectRatio: Float,
+        pipPosition: PipPosition,
         onProgress: (Int) -> Unit,
     ): File {
         val reactionUri = Uri.fromFile(reactionFile)
@@ -137,6 +139,7 @@ class ReactionExporter(private val context: Context) {
             fullAspectRatio = ReactionLayout.fullAspectRatio(reactionFullScreen, background),
             windowAspectRatio = ReactionLayout.windowAspectRatio(reactionFullScreen, background),
             arrangement = arrangement,
+            pipPosition = pipPosition,
             onProgress = onProgress,
         )
     }
@@ -154,6 +157,7 @@ class ReactionExporter(private val context: Context) {
         fullAspectRatio: Float?,
         windowAspectRatio: Float?,
         arrangement: DualLayout,
+        pipPosition: PipPosition,
         onProgress: (Int) -> Unit,
     ): File {
         // A sequence that asks for audio needs an audio track in its video.
@@ -180,6 +184,7 @@ class ReactionExporter(private val context: Context) {
                 windowLastFrame = lastFrame?.let { it to holdUs },
                 fullSource = fullSource,
                 arrangement = arrangement,
+                pipPosition = pipPosition,
             )
             Log.i(
                 TAG,
@@ -261,6 +266,7 @@ class ReactionExporter(private val context: Context) {
         windowLastFrame: Pair<File, Long>?,
         fullSource: Source,
         arrangement: DualLayout,
+        pipPosition: PipPosition,
     ): Composition {
         val output = outputSize(canvasWidth, canvasHeight)
         val (fullRect, windowRect) = ReactionLayout.slots(
@@ -269,6 +275,7 @@ class ReactionExporter(private val context: Context) {
             arrangement,
             fullAspectRatio,
             windowAspectRatio,
+            pipPosition,
         )
         val fullSize = fullRect.evenSize()
         val windowSize = windowRect.evenSize()

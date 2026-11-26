@@ -19,7 +19,13 @@ enum class DualLayout(val isStart: Boolean, val isTop: Boolean) {
     PipTopStart(isStart = true, isTop = true),
     PipTopEnd(isStart = false, isTop = true),
     PipBottomStart(isStart = true, isTop = false),
-    PipBottomEnd(isStart = false, isTop = false);
+    PipBottomEnd(isStart = false, isTop = false),
+
+    /**
+     * Like the corner PiP layouts (same sizes), but the user places the window anywhere by
+     * long-pressing and dragging it; see [PipPosition].
+     */
+    PipCustom(isStart = true, isTop = false);
 
     val isPip: Boolean
         get() = this != SplitVertical && this != SplitHorizontal

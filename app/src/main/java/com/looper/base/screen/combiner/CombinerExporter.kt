@@ -30,6 +30,7 @@ import androidx.media3.transformer.Transformer
 import com.looper.base.screen.combiner.data.CombinerLayout
 import com.looper.base.screen.combiner.data.CombinerRect
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -102,6 +103,7 @@ class CombinerExporter(private val context: Context) {
         window: Source,
         windowAspectRatio: Float,
         arrangement: DualLayout,
+        pipPosition: PipPosition,
         onProgress: (Int) -> Unit,
     ): File {
         val firstAspectRatio = firstWidth.toFloat() / firstHeight
@@ -141,6 +143,7 @@ class CombinerExporter(private val context: Context) {
                 windowLastFrame = lastFrame?.let { it to holdUs },
                 fullSource = fullSource,
                 arrangement = arrangement,
+                pipPosition = pipPosition,
             )
             Log.i(
                 TAG,
@@ -222,6 +225,7 @@ class CombinerExporter(private val context: Context) {
         windowLastFrame: Pair<File, Long>?,
         fullSource: Source,
         arrangement: DualLayout,
+        pipPosition: PipPosition,
     ): Composition {
         val output = outputSize(canvasWidth, canvasHeight)
         val (fullRect, windowRect) = CombinerLayout.slots(
@@ -230,6 +234,7 @@ class CombinerExporter(private val context: Context) {
             arrangement,
             firstAspectRatio,
             windowAspectRatio,
+            pipPosition,
         )
         val fullSize = fullRect.evenSize()
         val windowSize = windowRect.evenSize()

@@ -74,6 +74,7 @@
     <string name="dual_camera_layout_pip_top_end">Small window, top right</string>
     <string name="dual_camera_layout_pip_bottom_start">Small window, bottom left</string>
     <string name="dual_camera_layout_pip_bottom_end">Small window, bottom right</string>
+    <string name="dual_camera_layout_pip_custom">Small window, long press to move</string>
     <string name="dual_camera_take_photo">Take photo</string>
     <string name="dual_camera_start_recording">Start recording</string>
     <string name="dual_camera_stop_recording">Stop recording</string>
@@ -109,6 +110,7 @@
     <string name="reaction_corner_bottom_end">Reaction bottom right</string>
     <string name="reaction_layout_split_vertical">Split top and bottom</string>
     <string name="reaction_layout_split_horizontal">Split side by side</string>
+    <string name="reaction_layout_pip_custom">Movable reaction, long press to move</string>
     <string name="reaction_audio_background">Original</string>
     <string name="reaction_audio_reaction">Reaction</string>
     <string name="reaction_audio_both">Both</string>
@@ -133,6 +135,7 @@
     <string name="combiner_corner_bottom_end">Overlay bottom right</string>
     <string name="combiner_layout_split_vertical">Split top and bottom</string>
     <string name="combiner_layout_split_horizontal">Split side by side</string>
+    <string name="combiner_layout_pip_custom">Movable overlay, long press to move</string>
     <string name="combiner_audio_main">Original</string>
     <string name="combiner_audio_overlay">Overlay</string>
     <string name="combiner_audio_both">Both</string>

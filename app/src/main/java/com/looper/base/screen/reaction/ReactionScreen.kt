@@ -32,15 +32,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -57,9 +60,11 @@ import androidx.media3.common.Player
 import com.looper.base.R
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.reaction.data.ReactionEffect
 import com.looper.base.screen.reaction.data.ReactionLayout
 import com.looper.base.screen.reaction.data.ReactionUiState
+import com.looper.base.utils.clickable
 import org.koin.compose.viewmodel.koinViewModel
 import java.util.Locale
 
@@ -149,6 +154,7 @@ fun ReactionScreen(
                 surfaceRequest = surfaceRequest,
                 onPickBackground = pickBackground,
                 onPickReaction = openReactionCamera,
+                onPipDragged = viewModel::onPipDragged,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -237,9 +243,11 @@ private fun ReactionStage(
     surfaceRequest: SurfaceRequest?,
     onPickBackground: () -> Unit,
     onPickReaction: () -> Unit,
+    onPipDragged: (dx: Float, dy: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val background = state.background
+    val haptics = LocalHapticFeedback.current
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         val stageModifier = state.canvasAspectRatio
             ?.let { Modifier.aspectRatio(it) }
@@ -253,38 +261,67 @@ private fun ReactionStage(
                 arrangement = state.arrangement,
                 fullAspectRatio = state.fullAspectRatio,
                 windowAspectRatio = state.windowAspectRatio,
+                pipPosition = state.pipPosition,
             )
             val density = LocalDensity.current
-            val fullSlot = Modifier.placedAt(firstRect, density).zIndex(0f)
-            val windowSlot = Modifier.placedAt(secondRect, density).zIndex(1f)
+            val fullSlot = Modifier
+                .placedAt(firstRect, density)
+                .zIndex(0f)
+            val windowSlot = Modifier
+                .placedAt(secondRect, density)
+                .zIndex(1f)
 
-            // Background video slot.
-            Box(
-                modifier = (if (state.reactionWindowFullScreen) windowSlot else fullSlot).clipToBounds(),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (background != null) {
-                    PlayerTexture(
-                        player = player,
-                        videoAspectRatio = background.aspectRatio,
-                        onClickLabel = stringResource(R.string.reaction_change_background),
-                        enabled = state.canEdit,
-                        onClick = onPickBackground,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    BackgroundPlaceholder(onClick = onPickBackground)
-                }
+            // Custom layout: long-press the window, then drag it (fractions of its free space).
+            // Detected on the (static) stage so the moving window doesn't skew the drag amounts.
+            val currentWindow by rememberUpdatedState(secondRect)
+            val moveWindow = if (state.canMovePip) {
+                val (rangeX, rangeY) =
+                    ReactionLayout.pipRange(firstRect, secondRect.width, secondRect.height)
+                Modifier.dragAfterLongPress(
+                    key = rangeX to rangeY,
+                    startsIn = { it in currentWindow },
+                    onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
+                    onDrag = { delta ->
+                        onPipDragged(
+                            if (rangeX > 0f) delta.x / rangeX else 0f,
+                            if (rangeY > 0f) delta.y / rangeY else 0f,
+                        )
+                    },
+                )
+            } else {
+                Modifier
             }
 
-            // Reaction (camera) slot.
-            ReactionContent(
-                isCameraOn = state.isCameraOn,
-                surfaceRequest = surfaceRequest,
-                enabled = state.canEdit,
-                onPickReaction = onPickReaction,
-                modifier = if (state.reactionWindowFullScreen) fullSlot else windowSlot,
-            )
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .then(moveWindow)) {
+                // Background video slot.
+                Box(
+                    modifier = (if (state.reactionWindowFullScreen) windowSlot else fullSlot)
+                        .clipToBounds()
+                        .clickable(onClick = onPickBackground, enabled = state.canEdit),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (background != null) {
+                        PlayerTexture(
+                            player = player,
+                            videoAspectRatio = background.aspectRatio,
+                            onClickLabel = stringResource(R.string.reaction_change_background),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        BackgroundPlaceholder()
+                    }
+                }
+
+                // Reaction (camera) slot.
+                ReactionContent(
+                    isCameraOn = state.isCameraOn,
+                    surfaceRequest = surfaceRequest,
+                    modifier = if (state.reactionWindowFullScreen) fullSlot else windowSlot
+                        .clickable(onClick = onPickReaction, enabled = state.canEdit),
+                )
+            }
         }
     }
 }
@@ -293,8 +330,6 @@ private fun ReactionStage(
 private fun ReactionContent(
     isCameraOn: Boolean,
     surfaceRequest: SurfaceRequest?,
-    enabled: Boolean,
-    onPickReaction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -317,8 +352,6 @@ private fun ReactionContent(
             WindowPlaceholder(
                 iconRes = R.drawable.ic_reaction_person,
                 text = stringResource(R.string.reaction_select_reaction),
-                enabled = enabled,
-                onClick = onPickReaction,
             )
         }
     }

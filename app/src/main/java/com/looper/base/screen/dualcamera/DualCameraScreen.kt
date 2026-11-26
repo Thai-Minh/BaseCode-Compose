@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -60,10 +62,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -88,6 +93,8 @@ import com.looper.base.screen.dualcamera.data.DualCameraSupport
 import com.looper.base.screen.dualcamera.data.DualCameraUiState
 import com.looper.base.screen.dualcamera.data.DualCaptureMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
+import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.dualcamera.data.LayoutRect
 import com.looper.base.screen.dualcamera.data.PreviewLayout
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -180,6 +187,8 @@ fun DualCameraScreen(
                     isSwapped = uiState.isSwapped,
                     controlsTopInRoot = controlsTop,
                     onPreviewLayout = viewModel::onPreviewLayout,
+                    pipPosition = uiState.pipPosition,
+                    onPipDragged = if (uiState.canMovePip) viewModel::onPipDragged else null,
                 )
 
                 if (uiState.support == DualCameraSupport.Camera2Fallback) {
@@ -227,6 +236,10 @@ private class FeedConfig(
     val isSwapped: Boolean,
     val controlsTopInRoot: Float?,
     val onPreviewLayout: (PreviewLayout) -> Unit,
+    /** PiP window position (used by [DualLayout.PipCustom]). */
+    val pipPosition: PipPosition,
+    /** Drag of the custom PiP window, in fractions of its free space; null when it can't move. */
+    val onPipDragged: ((dx: Float, dy: Float) -> Unit)?,
 )
 
 @Composable
@@ -293,6 +306,7 @@ private fun DualFeedLayout(
 ) {
     val layout = config.layout
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
     val currentOnPreviewLayout by rememberUpdatedState(config.onPreviewLayout)
     var viewportBounds by remember { mutableStateOf<Rect?>(null) }
     var mainBounds by remember { mutableStateOf<Rect?>(null) }
@@ -332,6 +346,11 @@ private fun DualFeedLayout(
             .onGloballyPositioned { viewportBounds = it.boundsInRoot() }
     ) {
         val pipWidth = maxWidth * PreviewLayout.PIP_WIDTH_FRACTION
+        val customPip = if (layout == DualLayout.PipCustom) {
+            customPipPlacement(config.pipPosition, bottomReserved)
+        } else {
+            null
+        }
         val secondShape = if (layout.isPip) {
             RoundedCornerShape(pipWidth * PreviewLayout.PIP_CORNER_FRACTION)
         } else {
@@ -354,7 +373,32 @@ private fun DualFeedLayout(
                         .fillMaxWidth(0.5f)
                         .aspectRatio(PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO)
 
-            else -> Modifier.fillMaxSize() to pipPlacement(layout, bottomReserved)
+            else -> Modifier.fillMaxSize() to
+                (customPip?.modifier ?: pipPlacement(layout, bottomReserved))
+        }
+
+        // Custom layout: long-press the window, then drag it (fractions of its free space).
+        // Detected on the (static) viewport so the moving window doesn't skew the drag amounts.
+        val onPipDragged = config.onPipDragged
+        val moveWindow = if (customPip != null && onPipDragged != null) {
+            Modifier.dragAfterLongPress(
+                key = customPip.rangeX to customPip.rangeY,
+                startsIn = { position ->
+                    val viewport = viewportBounds
+                    val second = secondBounds
+                    viewport != null && second != null &&
+                        second.translate(-viewport.left, -viewport.top).contains(position)
+                },
+                onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
+                onDrag = { delta ->
+                    onPipDragged(
+                        if (customPip.rangeX > 0f) delta.x / customPip.rangeX else 0f,
+                        if (customPip.rangeY > 0f) delta.y / customPip.rangeY else 0f,
+                    )
+                },
+            )
+        } else {
+            Modifier
         }
 
         val mainModifier = Modifier
@@ -370,8 +414,10 @@ private fun DualFeedLayout(
             .clip(secondShape)
             .background(Color.DarkGray)
 
-        back(if (config.isSwapped) secondModifier else mainModifier)
-        front(if (config.isSwapped) mainModifier else secondModifier)
+        Box(modifier = Modifier.fillMaxSize().then(moveWindow)) {
+            back(if (config.isSwapped) secondModifier else mainModifier)
+            front(if (config.isSwapped) mainModifier else secondModifier)
+        }
     }
 }
 
@@ -399,6 +445,42 @@ private fun BoxWithConstraintsScope.pipPlacement(layout: DualLayout, bottomReser
         .padding(margin)
         .width(pipWidth)
         .aspectRatio(PreviewLayout.PIP_ASPECT_RATIO)
+}
+
+/** Placement of the [DualLayout.PipCustom] window and how far (pixels) it can move. */
+private class CustomPipPlacement(val modifier: Modifier, val rangeX: Float, val rangeY: Float)
+
+/**
+ * Size and free position of the PiP window for [DualLayout.PipCustom]: same size as the corner
+ * PiPs, at [position] inside the same bounds (safe area, above the bottom controls).
+ */
+@Composable
+private fun BoxWithConstraintsScope.customPipPlacement(
+    position: PipPosition,
+    bottomReserved: Dp,
+): CustomPipPlacement {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val insets = WindowInsets.safeDrawing
+    val pipWidth = maxWidth * PreviewLayout.PIP_WIDTH_FRACTION
+    val pipHeight = pipWidth / PreviewLayout.PIP_ASPECT_RATIO
+    val margin = maxWidth * PreviewLayout.PIP_MARGIN_FRACTION
+    return with(density) {
+        val minX = insets.getLeft(this, layoutDirection).toDp() + margin
+        val maxX = maxWidth - insets.getRight(this, layoutDirection).toDp() - margin - pipWidth
+        val minY = insets.getTop(this).toDp() + margin
+        val maxY = maxHeight - bottomReserved - margin - pipHeight
+        val rangeX = (maxX - minX).coerceAtLeast(0.dp)
+        val rangeY = (maxY - minY).coerceAtLeast(0.dp)
+        CustomPipPlacement(
+            modifier = Modifier
+                .align(AbsoluteAlignment.TopLeft)
+                .absoluteOffset(x = minX + rangeX * position.x, y = minY + rangeY * position.y)
+                .size(pipWidth, pipHeight),
+            rangeX = rangeX.toPx(),
+            rangeY = rangeY.toPx(),
+        )
+    }
 }
 
 /**
@@ -578,6 +660,17 @@ private fun LayoutDiagram(layout: DualLayout, color: Color, modifier: Modifier =
                 drawRect(color, Offset(left + half + gap, y), Size(half, halfHeight))
             }
 
+            DualLayout.PipCustom -> {
+                // Movable window: drawn in the middle, away from the corners.
+                drawRect(faded, Offset(left, top), Size(width, height))
+                val pip = Size(width * 0.45f, width * 0.45f / PreviewLayout.PIP_ASPECT_RATIO)
+                drawRect(
+                    color,
+                    Offset(left + (width - pip.width) / 2, top + (height - pip.height) / 2),
+                    pip,
+                )
+            }
+
             else -> {
                 drawRect(faded, Offset(left, top), Size(width, height))
                 val pip = Size(width * 0.45f, width * 0.45f / PreviewLayout.PIP_ASPECT_RATIO)
@@ -601,6 +694,7 @@ private fun DualLayout.labelRes(): Int = when (this) {
     DualLayout.PipTopEnd -> R.string.dual_camera_layout_pip_top_end
     DualLayout.PipBottomStart -> R.string.dual_camera_layout_pip_bottom_start
     DualLayout.PipBottomEnd -> R.string.dual_camera_layout_pip_bottom_end
+    DualLayout.PipCustom -> R.string.dual_camera_layout_pip_custom
 }
 
 @Composable

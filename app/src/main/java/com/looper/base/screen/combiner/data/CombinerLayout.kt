@@ -1,6 +1,7 @@
 package com.looper.base.screen.combiner.data
 
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 
 /**
  * Geometry of the combiner layouts, shared by the screen and the exporter so the saved video
@@ -50,6 +51,7 @@ object CombinerLayout {
         arrangement: DualLayout,
         firstAspectRatio: Float,
         secondAspectRatio: Float,
+        pipPosition: PipPosition,
     ): Pair<CombinerRect, CombinerRect> = when (arrangement) {
         DualLayout.SplitVertical -> {
             val half = canvasHeight / 2
@@ -70,11 +72,28 @@ object CombinerLayout {
         else -> {
             val (width, height) = windowSize(canvasWidth, canvasHeight, secondAspectRatio)
             val margin = margin(canvasWidth)
-            val left = if (arrangement.isStart) margin else canvasWidth - margin - width
-            val top = if (arrangement.isTop) margin else canvasHeight - margin - height
+            val (rangeX, rangeY) = pipRange(canvasWidth, canvasHeight, width, height)
+            val left = margin + pipPosition.x * rangeX
+            val top = margin + pipPosition.y * rangeY
             CombinerRect(0f, 0f, canvasWidth, canvasHeight) to
                 CombinerRect(left, top, width, height)
         }
+    }
+
+    /**
+     * How far (pixels) a [windowWidth] x [windowHeight] PiP window can move inside a
+     * [canvasWidth] x [canvasHeight] canvas (minus its margins): the span of [PipPosition] 0..1
+     * on each axis.
+     */
+    fun pipRange(
+        canvasWidth: Float,
+        canvasHeight: Float,
+        windowWidth: Float,
+        windowHeight: Float,
+    ): Pair<Float, Float> {
+        val margin = margin(canvasWidth)
+        return (canvasWidth - 2 * margin - windowWidth).coerceAtLeast(0f) to
+            (canvasHeight - 2 * margin - windowHeight).coerceAtLeast(0f)
     }
 
     /**

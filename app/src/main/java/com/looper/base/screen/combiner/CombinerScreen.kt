@@ -29,14 +29,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -50,12 +53,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import com.looper.ads.clickable
 import com.looper.base.R
 import com.looper.base.screen.combiner.data.CombinerEffect
 import com.looper.base.screen.combiner.data.CombinerLayout
 import com.looper.base.screen.combiner.data.CombinerUiState
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.ui.dragAfterLongPress
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -115,6 +120,7 @@ fun CombinerScreen(
                 overlayPlayer = viewModel.overlayPlayer,
                 onPickMain = pickMain,
                 onPickOverlay = pickOverlay,
+                onPipDragged = viewModel::onPipDragged,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -200,8 +206,10 @@ private fun CombinerStage(
     overlayPlayer: Player,
     onPickMain: () -> Unit,
     onPickOverlay: () -> Unit,
+    onPipDragged: (dx: Float, dy: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHapticFeedback.current
     val mainVideo = state.mainVideo
     val overlayVideo = state.overlayVideo
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -221,48 +229,73 @@ private fun CombinerStage(
                 arrangement = state.arrangement,
                 firstAspectRatio = state.fullAspectRatio,
                 secondAspectRatio = state.windowAspectRatio,
+                pipPosition = state.pipPosition,
             )
             val density = LocalDensity.current
             val fullSlot = Modifier.placedAt(firstRect, density).zIndex(0f)
             val windowSlot = Modifier.placedAt(secondRect, density).zIndex(1f)
 
-            // Main video slot.
-            Box(
-                modifier = (if (state.overlayFullScreen) windowSlot else fullSlot).clipToBounds(),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (mainVideo != null) {
-                    PlayerTexture(
-                        player = mainPlayer,
-                        videoAspectRatio = mainVideo.aspectRatio,
-                        onClickLabel = stringResource(R.string.combiner_change_main),
-                        enabled = state.canEdit,
-                        onClick = onPickMain,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    MainPlaceholder(onClick = onPickMain)
-                }
+            // Custom layout: long-press the window, then drag it (fractions of its free space).
+            // Detected on the (static) stage so the moving window doesn't skew the drag amounts.
+            val currentWindow by rememberUpdatedState(secondRect)
+            val moveWindow = if (state.canMovePip) {
+                val (rangeX, rangeY) = CombinerLayout.pipRange(
+                    firstRect.width,
+                    firstRect.height,
+                    secondRect.width,
+                    secondRect.height,
+                )
+                Modifier.dragAfterLongPress(
+                    key = rangeX to rangeY,
+                    startsIn = { it in currentWindow },
+                    onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
+                    onDrag = { delta ->
+                        onPipDragged(
+                            if (rangeX > 0f) delta.x / rangeX else 0f,
+                            if (rangeY > 0f) delta.y / rangeY else 0f,
+                        )
+                    },
+                )
+            } else {
+                Modifier
             }
 
-            // Overlay video slot.
-            Box(
-                modifier = (if (state.overlayFullScreen) fullSlot else windowSlot)
-                    .clip(if (overlayVideo != null) RectangleShape else RoundedCornerShape(12.dp))
-                    .background(PlaceholderColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (overlayVideo != null) {
-                    PlayerTexture(
-                        player = overlayPlayer,
-                        videoAspectRatio = overlayVideo.aspectRatio,
-                        onClickLabel = stringResource(R.string.combiner_change_overlay),
-                        enabled = state.canEdit,
-                        onClick = onPickOverlay,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    OverlayPlaceholder(enabled = state.canEdit, onClick = onPickOverlay)
+            Box(modifier = Modifier.fillMaxSize().then(moveWindow)) {
+                // Main video slot.
+                Box(
+                    modifier = (if (state.overlayFullScreen) windowSlot else fullSlot)
+                        .clipToBounds()
+                        .clickable(onClick = onPickMain, enabled = state.canEdit),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (mainVideo != null) {
+                        PlayerTexture(
+                            player = mainPlayer,
+                            videoAspectRatio = mainVideo.aspectRatio,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        MainPlaceholder()
+                    }
+                }
+
+                // Overlay video slot.
+                Box(
+                    modifier = (if (state.overlayFullScreen) fullSlot else windowSlot)
+                        .clip(if (overlayVideo != null) RectangleShape else RoundedCornerShape(12.dp))
+                        .background(PlaceholderColor)
+                        .clickable(onClick = onPickOverlay, enabled = state.canEdit),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (overlayVideo != null) {
+                        PlayerTexture(
+                            player = overlayPlayer,
+                            videoAspectRatio = overlayVideo.aspectRatio,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        OverlayPlaceholder()
+                    }
                 }
             }
         }

@@ -32,6 +32,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.looper.base.R
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import com.looper.base.screen.dualcamera.DualCameraMedia
 import com.looper.base.screen.reaction.data.PickedVideo
 import com.looper.base.screen.reaction.data.ReactionEffect
@@ -126,7 +127,23 @@ class ReactionViewModel(
 
     fun onArrangementSelected(arrangement: DualLayout) {
         if (!uiState.value.canEdit) return
-        uiState.update { it.copy(arrangement = arrangement) }
+        uiState.update {
+            it.copy(
+                arrangement = arrangement,
+                // The movable window starts where the previous corner layout had it.
+                customPipPosition = if (arrangement == DualLayout.PipCustom) {
+                    PipPosition.whenSwitchingFrom(it.arrangement, it.customPipPosition)
+                } else {
+                    it.customPipPosition
+                },
+            )
+        }
+    }
+
+    /** The custom PiP window was dragged by fractions of its free space (see [PipPosition]). */
+    fun onPipDragged(dx: Float, dy: Float) {
+        if (!uiState.value.canMovePip) return
+        uiState.update { it.copy(customPipPosition = it.customPipPosition.movedBy(dx, dy)) }
     }
 
     fun onAudioModeSelected(mode: DualAudioMode) {
@@ -308,6 +325,7 @@ class ReactionViewModel(
                     audioMode = state.audioMode,
                     reactionFullScreen = state.reactionWindowFullScreen,
                     pipCanvasAspectRatio = stageAspectRatio,
+                    pipPosition = state.pipPosition,
                     onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
                 )
                 val uri = withContext(Dispatchers.IO) {

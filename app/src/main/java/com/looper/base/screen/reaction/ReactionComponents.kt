@@ -1,5 +1,7 @@
 package com.looper.base.screen.reaction
 
+import android.R.attr.enabled
+import android.R.attr.onClick
 import android.view.TextureView
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -57,6 +59,7 @@ import androidx.media3.common.Player
 import com.looper.base.R
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import com.looper.base.screen.reaction.data.ReactionLayout
 import com.looper.base.screen.reaction.data.ReactionRect
 import kotlin.math.roundToInt
@@ -102,8 +105,6 @@ internal fun PlayerTexture(
     player: Player,
     videoAspectRatio: Float,
     onClickLabel: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.clipToBounds(), contentAlignment = Alignment.Center) {
@@ -121,23 +122,12 @@ internal fun PlayerTexture(
                 modifier = Modifier.requiredSize(width.toDp(), height.toDp()),
             )
         }
-        // Above the TextureView so the tap is handled by Compose, not the platform view.
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(
-                    enabled = enabled,
-                    onClickLabel = onClickLabel,
-                    role = Role.Button,
-                    onClick = onClick,
-                ),
-        )
     }
 }
 
 /** Full-frame placeholder: a video icon and a "Select Background Video" pill. */
 @Composable
-internal fun BackgroundPlaceholder(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun BackgroundPlaceholder(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -151,7 +141,6 @@ internal fun BackgroundPlaceholder(onClick: () -> Unit, modifier: Modifier = Mod
         Spacer(modifier = Modifier.height(16.dp))
         PillButton(
             text = stringResource(R.string.reaction_select_background),
-            onClick = onClick,
             fontSizeSp = 15,
         )
     }
@@ -162,8 +151,6 @@ internal fun BackgroundPlaceholder(onClick: () -> Unit, modifier: Modifier = Mod
 internal fun WindowPlaceholder(
     @DrawableRes iconRes: Int,
     text: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
@@ -175,8 +162,6 @@ internal fun WindowPlaceholder(
         Spacer(modifier = Modifier.height(8.dp))
         PillButton(
             text = text,
-            onClick = onClick,
-            enabled = enabled,
             fontSizeSp = 10,
             maxLines = 2,
             modifier = Modifier.padding(horizontal = 4.dp),
@@ -187,17 +172,14 @@ internal fun WindowPlaceholder(
 @Composable
 internal fun PillButton(
     text: String,
-    onClick: () -> Unit,
     fontSizeSp: Int,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
     maxLines: Int = 1,
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(PillColor)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -219,7 +201,7 @@ internal fun ArrangementSelector(
     enabled: Boolean,
     onSelect: (DualLayout) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         DualLayout.entries.forEach { arrangement ->
             ArrangementOption(
                 arrangement = arrangement,
@@ -250,7 +232,7 @@ private fun ArrangementOption(
             .background(if (selected) Color.White.copy(alpha = 0.2f) else Color.Transparent)
             .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = label }
-            .padding(8.dp),
+            .padding(6.dp),
     ) {
         Canvas(modifier = Modifier.width(28.dp).height(44.dp)) {
             val stroke = 2.dp.toPx()
@@ -287,8 +269,14 @@ private fun ArrangementOption(
                 else -> {
                     val windowWidth = size.width * ReactionLayout.WIDTH_FRACTION * 1.2f
                     val windowHeight = windowWidth / ReactionLayout.ASPECT_RATIO
-                    val left = if (arrangement.isStart) inset else size.width - inset - windowWidth
-                    val top = if (arrangement.isTop) inset else size.height - inset - windowHeight
+                    // Custom (movable) window: drawn in the middle, away from the corners.
+                    val position = if (arrangement == DualLayout.PipCustom) {
+                        PipPosition(0.5f, 0.5f)
+                    } else {
+                        PipPosition.of(arrangement)
+                    }
+                    val left = inset + position.x * (size.width - 2 * inset - windowWidth)
+                    val top = inset + position.y * (size.height - 2 * inset - windowHeight)
                     drawRect(
                         color = color,
                         topLeft = Offset(left, top),
@@ -370,6 +358,10 @@ internal fun Modifier.placedAt(rect: ReactionRect, density: Density): Modifier =
     offset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
         .size(with(density) { rect.width.toDp() }, with(density) { rect.height.toDp() })
 
+/** Whether [point] (pixels from the canvas' top-left) is inside this rect. */
+internal operator fun ReactionRect.contains(point: Offset): Boolean =
+    point.x in left..(left + width) && point.y in top..(top + height)
+
 @StringRes
 private fun DualLayout.labelRes(): Int = when (this) {
     DualLayout.PipTopStart -> R.string.reaction_corner_top_start
@@ -378,4 +370,5 @@ private fun DualLayout.labelRes(): Int = when (this) {
     DualLayout.PipBottomEnd -> R.string.reaction_corner_bottom_end
     DualLayout.SplitVertical -> R.string.reaction_layout_split_vertical
     DualLayout.SplitHorizontal -> R.string.reaction_layout_split_horizontal
+    DualLayout.PipCustom -> R.string.reaction_layout_pip_custom
 }
