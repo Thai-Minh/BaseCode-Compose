@@ -72,7 +72,9 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
  * Composites the background video and the reaction recording like the preview, in a
  * [DualLayout] (geometry from [ReactionLayout]): in PiP layouts the frame is the full-frame
  * video (its own size and aspect ratio) or the full-frame camera (the preview stage's aspect
- * ratio), with the other one in a corner window 1/3 of its width; in the split layouts each fills
+ * ratio), with the other one in a corner window (camera: 9:16 at 1/3 of its width, or 3:4 at
+ * 1/2 of its height over a landscape video, center-cropped; video: 1/3 of its width at its own
+ * aspect ratio); in the split layouts each fills
  * a half of the frame (center-cropped). The output lasts as long as the longer
  * video; the one that ends first keeps showing its last frame until the end.
  *
@@ -150,7 +152,7 @@ class ReactionExporter(private val context: Context) {
         full: Source,
         window: Source,
         fullAspectRatio: Float?,
-        windowAspectRatio: Float,
+        windowAspectRatio: Float?,
         arrangement: DualLayout,
         onProgress: (Int) -> Unit,
     ): File {
@@ -254,7 +256,7 @@ class ReactionExporter(private val context: Context) {
         canvasWidth: Int,
         canvasHeight: Int,
         fullAspectRatio: Float?,
-        windowAspectRatio: Float,
+        windowAspectRatio: Float?,
         windowSource: Source,
         windowLastFrame: Pair<File, Long>?,
         fullSource: Source,

@@ -7,8 +7,11 @@ import com.looper.base.screen.common.data.DualLayout
  * looks like the preview. Every video keeps its original aspect ratio (nothing is cropped).
  */
 object CombinerLayout {
-    /** PiP window width relative to the canvas width. */
+    /** PiP window width relative to the canvas width (portrait or square full-frame video). */
     const val WIDTH_FRACTION = 1f / 3f
+
+    /** PiP window height relative to the canvas height (landscape full-frame video). */
+    const val LANDSCAPE_HEIGHT_FRACTION = 1f / 2f
 
     /** Width / height of an empty slot's placeholder (portrait 9:16). */
     const val PLACEHOLDER_ASPECT_RATIO = 9f / 16f
@@ -75,10 +78,22 @@ object CombinerLayout {
     }
 
     /**
-     * PiP window size (width, height) inside a [mainWidth] x [mainHeight] canvas: 1/3 of its
-     * width at [aspectRatio] (width / height), shrunk if the canvas is too short for it.
+     * PiP window size (width, height) at [aspectRatio] (width / height) inside a [mainWidth] x
+     * [mainHeight] canvas (the full-frame video):
+     * - landscape canvas: 1/2 of its height, shrunk if the canvas is too narrow for it;
+     * - otherwise: 1/3 of its width, shrunk if the canvas is too short for it.
      */
     fun windowSize(mainWidth: Float, mainHeight: Float, aspectRatio: Float): Pair<Float, Float> {
+        if (mainWidth > mainHeight) {
+            var height = mainHeight * LANDSCAPE_HEIGHT_FRACTION
+            var width = height * aspectRatio
+            val maxWidth = mainWidth - 2 * margin(mainWidth)
+            if (width > maxWidth) {
+                width = maxWidth
+                height = width / aspectRatio
+            }
+            return width to height
+        }
         var width = mainWidth * WIDTH_FRACTION
         var height = width / aspectRatio
         val maxHeight = mainHeight - 2 * margin(mainWidth)

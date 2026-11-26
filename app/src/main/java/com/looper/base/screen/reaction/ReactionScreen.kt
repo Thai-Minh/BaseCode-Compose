@@ -222,7 +222,9 @@ private fun TopBar(
 /**
  * The canvas: in PiP layouts the whole stage, the full-frame camera filling it or the full-frame
  * video fitted at its original aspect ratio (black bands), and the other one in a corner window
- * 1/3 of the width; in split layouts a fixed frame with one video per half. Uses
+ * inside it (camera: 9:16 at 1/3 of its width, or 3:4 at 1/2 of its height when it is
+ * landscape; video: 1/3 of its width); in split layouts a fixed frame
+ * with one video per half. Uses
  * [ReactionLayout] so the exported video has the same geometry.
  *
  * Both slots stay at fixed positions in the composition and only their modifiers change on swap

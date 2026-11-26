@@ -31,7 +31,7 @@ data class ReactionUiState(
     val canSwap: Boolean get() = isReadyToRecord && canEdit
 
     /** Width / height of the PiP window for the current layout. */
-    val windowAspectRatio: Float
+    val windowAspectRatio: Float?
         get() = ReactionLayout.windowAspectRatio(reactionWindowFullScreen, background)
 
     /** Width / height of the full-frame video in PiP layouts, or null when it fills the frame. */
