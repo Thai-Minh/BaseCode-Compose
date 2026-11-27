@@ -339,11 +339,18 @@ internal fun ExportOverlay(progress: Int) {
 
 /**
  * Places the element at [rect] (pixels from the canvas' top-left, not RTL-mirrored), matching the
- * exported video's geometry.
+ * exported video's geometry, moved by [shift] (pixels). [shift] is read in the layout phase: a
+ * dragged window moves without recomposing anything.
  */
-internal fun Modifier.placedAt(rect: CombinerRect, density: Density): Modifier =
-    offset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
-        .size(with(density) { rect.width.toDp() }, with(density) { rect.height.toDp() })
+internal fun Modifier.placedAt(
+    rect: CombinerRect,
+    density: Density,
+    shift: () -> Offset = { Offset.Zero },
+): Modifier =
+    offset {
+        val delta = shift()
+        IntOffset((rect.left + delta.x).roundToInt(), (rect.top + delta.y).roundToInt())
+    }.size(with(density) { rect.width.toDp() }, with(density) { rect.height.toDp() })
 
 /** Whether [point] (pixels from the canvas' top-left) is inside this rect. */
 internal operator fun CombinerRect.contains(point: Offset): Boolean =

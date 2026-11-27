@@ -2,7 +2,6 @@ package com.looper.base.screen.reaction.data
 
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
-import com.looper.base.screen.common.data.PipPosition
 
 data class ReactionUiState(
     val background: PickedVideo? = null,
@@ -13,8 +12,6 @@ data class ReactionUiState(
     /** false: background first (full frame / top / left); true: the reaction first. */
     val reactionWindowFullScreen: Boolean = false,
     val arrangement: DualLayout = DualLayout.PipCustom,
-    /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
-    val pipPosition: PipPosition = PipPosition.BottomLeft,
     val audioMode: DualAudioMode = DualAudioMode.Both,
     val isRecording: Boolean = false,
     val recordedDurationMs: Long = 0L,

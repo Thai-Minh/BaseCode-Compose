@@ -1,7 +1,6 @@
 package com.looper.base.screen.dualcamera.data
 
 import com.looper.base.screen.common.data.DualLayout
-import com.looper.base.screen.common.data.PipPosition
 
 enum class DualCaptureMode {
     /** Two independent streams (Preview + ImageCapture per camera), merged into one photo. */
@@ -51,8 +50,6 @@ data class DualCameraUiState(
     /** false: back camera is the main feed. true: front camera is the main feed. */
     val isSwapped: Boolean = false,
     val layout: DualLayout = DualLayout.PipCustom,
-    /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
-    val pipPosition: PipPosition = PipPosition.TopRight,
     val isCapturing: Boolean = false,
     val isRecording: Boolean = false,
     val recordedDurationMs: Long = 0L,

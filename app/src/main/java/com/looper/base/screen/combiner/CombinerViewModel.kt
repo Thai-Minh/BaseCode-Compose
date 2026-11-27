@@ -40,6 +40,13 @@ class CombinerViewModel(
     val effects: SharedFlow<CombinerEffect>
         field = MutableSharedFlow(extraBufferCapacity = 4)
 
+    /**
+     * Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. Kept out
+     * of [uiState] so a drag only moves the window: the screen reads it in the layout phase.
+     */
+    val pipPosition: StateFlow<PipPosition>
+        field = MutableStateFlow(PipPosition.BottomLeft)
+
     val mainPlayer: ExoPlayer = ExoPlayer.Builder(app).build()
     val overlayPlayer: ExoPlayer = ExoPlayer.Builder(app).build()
     private val players = listOf(mainPlayer, overlayPlayer)
@@ -82,7 +89,7 @@ class CombinerViewModel(
     /** The PiP window was dragged by fractions of its free space (see [PipPosition]). */
     fun onPipDragged(dx: Float, dy: Float) {
         if (!uiState.value.canMovePip) return
-        uiState.update { it.copy(pipPosition = it.pipPosition.movedBy(dx, dy)) }
+        pipPosition.update { it.movedBy(dx, dy) }
     }
 
     fun onAudioModeSelected(mode: DualAudioMode) {
@@ -121,7 +128,7 @@ class CombinerViewModel(
                     overlayFullScreen = state.overlayFullScreen,
                     arrangement = state.arrangement,
                     audioMode = state.audioMode,
-                    pipPosition = state.pipPosition,
+                    pipPosition = pipPosition.value,
                     onProgress = { progress ->
                         uiState.update { it.copy(exportProgress = progress) }
                     },

@@ -2,7 +2,6 @@ package com.looper.base.screen.combiner.data
 
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
-import com.looper.base.screen.common.data.PipPosition
 
 /**
  * Video combiner: a main video and an overlay video, both picked from the device, arranged by
@@ -15,8 +14,6 @@ data class CombinerUiState(
     /** false: main video first (full frame / top / left); true: the overlay first. */
     val overlayFullScreen: Boolean = false,
     val arrangement: DualLayout = DualLayout.PipCustom,
-    /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
-    val pipPosition: PipPosition = PipPosition.BottomLeft,
     val audioMode: DualAudioMode = DualAudioMode.Both,
     /** Both videos are playing (or the longer one is, the shorter one holding its last frame). */
     val isPreviewPlaying: Boolean = false,

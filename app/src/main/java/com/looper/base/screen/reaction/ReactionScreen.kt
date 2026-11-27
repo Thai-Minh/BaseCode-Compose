@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
@@ -58,6 +59,7 @@ import androidx.media3.common.Player
 import com.looper.base.R
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.reaction.data.ReactionEffect
 import com.looper.base.screen.reaction.data.ReactionLayout
@@ -76,6 +78,8 @@ fun ReactionScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val surfaceRequest by viewModel.surfaceRequest.collectAsStateWithLifecycle()
+    // Not read here: the PiP window reads it in the layout phase (see ReactionStage).
+    val pipPositionState = viewModel.pipPosition.collectAsStateWithLifecycle()
 
     val videoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -150,6 +154,7 @@ fun ReactionScreen(
                 state = uiState,
                 player = viewModel.player,
                 surfaceRequest = surfaceRequest,
+                pipPosition = { pipPositionState.value },
                 onPickBackground = pickBackground,
                 onPickReaction = openReactionCamera,
                 onPipDragged = viewModel::onPipDragged,
@@ -239,6 +244,7 @@ private fun ReactionStage(
     state: ReactionUiState,
     player: Player,
     surfaceRequest: SurfaceRequest?,
+    pipPosition: () -> PipPosition,
     onPickBackground: () -> Unit,
     onPickReaction: () -> Unit,
     onPipDragged: (dx: Float, dy: Float) -> Unit,
@@ -253,31 +259,41 @@ private fun ReactionStage(
         // Bands around a fitted video are black, as in the exported video.
         val stageBackground = if (background != null) Modifier.background(Color.Black) else Modifier
         BoxWithConstraints(modifier = stageModifier.then(stageBackground)) {
+            // The window is laid out at the top-left of its free space and shifted to the drag
+            // position in the layout phase: moving it doesn't recompose the stage.
             val (firstRect, secondRect) = ReactionLayout.slots(
                 canvasWidth = constraints.maxWidth.toFloat(),
                 canvasHeight = constraints.maxHeight.toFloat(),
                 arrangement = state.arrangement,
                 fullAspectRatio = state.fullAspectRatio,
                 windowAspectRatio = state.windowAspectRatio,
-                pipPosition = state.pipPosition,
+                pipPosition = PipPosition.TopLeft,
             )
+            val (rangeX, rangeY) = if (state.arrangement.isPip) {
+                ReactionLayout.pipRange(firstRect, secondRect.width, secondRect.height)
+            } else {
+                0f to 0f
+            }
+            val windowShift = {
+                val position = pipPosition()
+                Offset(position.x * rangeX, position.y * rangeY)
+            }
             val density = LocalDensity.current
             val fullSlot = Modifier
                 .placedAt(firstRect, density)
                 .zIndex(0f)
             val windowSlot = Modifier
-                .placedAt(secondRect, density)
+                .placedAt(secondRect, density, windowShift)
                 .zIndex(1f)
 
             // Custom layout: long-press the window, then drag it (fractions of its free space).
             // Detected on the (static) stage so the moving window doesn't skew the drag amounts.
             val currentWindow by rememberUpdatedState(secondRect)
+            val currentShift by rememberUpdatedState(windowShift)
             val moveWindow = if (state.canMovePip) {
-                val (rangeX, rangeY) =
-                    ReactionLayout.pipRange(firstRect, secondRect.width, secondRect.height)
                 Modifier.dragAfterLongPress(
                     key = rangeX to rangeY,
-                    startsIn = { it in currentWindow },
+                    startsIn = { point -> (point - currentShift()) in currentWindow },
                     onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
                     onDrag = { delta ->
                         onPipDragged(

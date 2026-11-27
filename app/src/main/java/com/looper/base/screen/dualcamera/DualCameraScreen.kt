@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +73,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -97,6 +99,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.compose.viewmodel.koinViewModel
 import java.util.Locale
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Max wait for the front camera before opening the back one anyway. */
@@ -148,6 +151,8 @@ fun DualCameraScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val primaryRequest by viewModel.primarySurfaceRequest.collectAsStateWithLifecycle()
     val secondaryRequest by viewModel.secondarySurfaceRequest.collectAsStateWithLifecycle()
+    // Not read here: the PiP window reads it in the layout phase (see customPipPlacement).
+    val pipPositionState = viewModel.pipPosition.collectAsStateWithLifecycle()
 
     if (hasCameraPermission) {
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -180,7 +185,7 @@ fun DualCameraScreen(
                     layout = uiState.layout,
                     isSwapped = uiState.isSwapped,
                     onPreviewLayout = viewModel::onPreviewLayout,
-                    pipPosition = uiState.pipPosition,
+                    pipPosition = { pipPositionState.value },
                     onPipDragged = if (uiState.canMovePip) viewModel::onPipDragged else null,
                 )
 
@@ -227,8 +232,8 @@ private class FeedConfig(
     val layout: DualLayout,
     val isSwapped: Boolean,
     val onPreviewLayout: (PreviewLayout) -> Unit,
-    /** PiP window position (used by [DualLayout.PipCustom]). */
-    val pipPosition: PipPosition,
+    /** PiP window position (used by [DualLayout.PipCustom]), read in the layout phase. */
+    val pipPosition: () -> PipPosition,
     /** Drag of the custom PiP window, in fractions of its free space; null when it can't move. */
     val onPipDragged: ((dx: Float, dy: Float) -> Unit)?,
 )
@@ -299,23 +304,27 @@ private fun DualFeedLayout(
     val layout = config.layout
     val haptics = LocalHapticFeedback.current
     val currentOnPreviewLayout by rememberUpdatedState(config.onPreviewLayout)
+    // Written in the layout phase and never read in composition (only by the snapshotFlow below
+    // and the drag gesture): moving or resizing a feed doesn't trigger a recomposition.
     var viewportBounds by remember { mutableStateOf<Rect?>(null) }
     var mainBounds by remember { mutableStateOf<Rect?>(null) }
     var secondBounds by remember { mutableStateOf<Rect?>(null) }
 
-    LaunchedEffect(viewportBounds, mainBounds, secondBounds, layout) {
-        val viewport = viewportBounds ?: return@LaunchedEffect
-        val main = mainBounds ?: return@LaunchedEffect
-        val second = secondBounds ?: return@LaunchedEffect
-        fun Rect.relative() = LayoutRect(left - viewport.left, top - viewport.top, width, height)
-        currentOnPreviewLayout(
-            PreviewLayout(
-                viewportWidth = viewport.width,
-                viewportHeight = viewport.height,
-                main = main.relative(),
-                second = second.relative(),
-            ).croppedToContent() // Saved media has no empty bands (side by side layout).
-        )
+    LaunchedEffect(Unit) {
+        snapshotFlow { Triple(viewportBounds, mainBounds, secondBounds) }
+            .collect { (viewport, main, second) ->
+                if (viewport == null || main == null || second == null) return@collect
+                fun Rect.relative() =
+                    LayoutRect(left - viewport.left, top - viewport.top, width, height)
+                currentOnPreviewLayout(
+                    PreviewLayout(
+                        viewportWidth = viewport.width,
+                        viewportHeight = viewport.height,
+                        main = main.relative(),
+                        second = second.relative(),
+                    ).croppedToContent() // Saved media has no empty bands (side by side layout).
+                )
+            }
     }
 
     BoxWithConstraints(
@@ -400,22 +409,28 @@ private class CustomPipPlacement(val modifier: Modifier, val rangeX: Float, val 
 
 /**
  * Size and position of the [DualLayout.PipCustom] window: 1/3 of the viewport width at 9:16, at
- * [position] anywhere over the full-screen feed, up to its edges.
+ * [position] anywhere over the full-screen feed, up to its edges. [position] is read in the
+ * layout phase, so dragging the window moves it without any recomposition.
  */
 @Composable
-private fun BoxWithConstraintsScope.customPipPlacement(position: PipPosition): CustomPipPlacement {
+private fun BoxWithConstraintsScope.customPipPlacement(
+    position: () -> PipPosition,
+): CustomPipPlacement {
     val density = LocalDensity.current
     val pipWidth = maxWidth * PreviewLayout.PIP_WIDTH_FRACTION
     val pipHeight = pipWidth / PreviewLayout.PIP_ASPECT_RATIO
-    val rangeX = (maxWidth - pipWidth).coerceAtLeast(0.dp)
-    val rangeY = (maxHeight - pipHeight).coerceAtLeast(0.dp)
+    val rangeX = with(density) { (maxWidth - pipWidth).coerceAtLeast(0.dp).toPx() }
+    val rangeY = with(density) { (maxHeight - pipHeight).coerceAtLeast(0.dp).toPx() }
     return CustomPipPlacement(
         modifier = Modifier
             .align(AbsoluteAlignment.TopLeft)
-            .absoluteOffset(x = rangeX * position.x, y = rangeY * position.y)
+            .absoluteOffset {
+                val current = position()
+                IntOffset((rangeX * current.x).roundToInt(), (rangeY * current.y).roundToInt())
+            }
             .size(pipWidth, pipHeight),
-        rangeX = with(density) { rangeX.toPx() },
-        rangeY = with(density) { rangeY.toPx() },
+        rangeX = rangeX,
+        rangeY = rangeY,
     )
 }
 
@@ -504,7 +519,7 @@ private fun Camera2DualPreview(
 }
 
 /**
- * The window in single-camera mode: no camera, only [PreviewLayout.PLACEHOLDER_COLOR] (saved
+ * The window in single-camera mode: no camera, only [PreviewLayout.FAILED_CAMERA_COLOR] (saved
  * photos / videos fill the window with the same color).
  */
 @Composable

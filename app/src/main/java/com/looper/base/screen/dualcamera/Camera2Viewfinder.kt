@@ -43,6 +43,7 @@ import com.looper.base.screen.dualcamera.data.Camera2CameraIds
 import com.looper.base.screen.dualcamera.data.PreviewLayout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -139,7 +140,8 @@ class Camera2CameraHandle {
             } ?: throw CameraUnavailableException("Still capture session not ready")
             // Let auto exposure / focus settle on the freshly configured session.
             delay(STILL_SETTLE_MS.milliseconds)
-            block()
+            // Capture requests are Binder calls: on the camera thread, not the caller's.
+            withContext(cameraDispatcher) { block() }
         } finally {
             stillMode.value = false
         }
@@ -246,7 +248,7 @@ fun Camera2Viewfinder(
                     var retries = 0
                     while (true) {
                         try {
-                            cameraManager.runPreview(config)
+                            withContext(cameraDispatcher) { cameraManager.runPreview(config) }
                             break
                         } catch (e: CancellationException) {
                             throw e
@@ -374,6 +376,13 @@ private val cameraHandler by lazy {
     Handler(HandlerThread("DualCamera2").apply { start() }.looper)
 }
 private val cameraExecutor = Executor { cameraHandler.post(it) }
+
+/**
+ * Camera2 device / session calls are synchronous Binder calls that can block for hundreds of ms
+ * (opening a camera, configuring or closing a session, on every still / recording switch): they
+ * run on the camera thread, never on the main thread.
+ */
+private val cameraDispatcher by lazy { cameraHandler.asCoroutineDispatcher("DualCamera2") }
 
 /**
  * Opens the camera, streams preview (plus stills or recording, see [Camera2CameraHandle]) and

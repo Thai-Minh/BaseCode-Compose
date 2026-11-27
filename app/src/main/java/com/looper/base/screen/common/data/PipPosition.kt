@@ -14,6 +14,7 @@ data class PipPosition(val x: Float, val y: Float) {
         PipPosition((x + dx).coerceIn(0f, 1f), (y + dy).coerceIn(0f, 1f))
 
     companion object {
+        val TopLeft = PipPosition(0f, 0f)
         val TopRight = PipPosition(1f, 0f)
         val BottomLeft = PipPosition(0f, 1f)
     }

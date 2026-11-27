@@ -52,6 +52,13 @@ class DualCameraViewModel(
     val effects: SharedFlow<DualCameraEffect>
         field = MutableSharedFlow(extraBufferCapacity = 1)
 
+    /**
+     * Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. Kept out
+     * of [uiState] so a drag only moves the window: the screen reads it in the layout phase.
+     */
+    val pipPosition: StateFlow<PipPosition>
+        field = MutableStateFlow(PipPosition.TopRight)
+
     /** Back camera preview (photo mode) or the composited PiP preview (video mode). */
     val primarySurfaceRequest: StateFlow<SurfaceRequest?> = repository.primarySurfaceRequest
 
@@ -62,8 +69,8 @@ class DualCameraViewModel(
     val camera2Back: Camera2CameraHandle = repository.camera2Back
     val camera2Front: Camera2CameraHandle = repository.camera2Front
 
-    /** Ticks the Camera2 recording's duration, null when idle. */
-    private var camera2DurationJob: Job? = null
+    /** Sets up the Camera2 recorder, then ticks its duration. */
+    private var camera2RecordingJob: Job? = null
 
     /** Guards against an old session's cleanup tearing down a newer binding. */
     private var bindSessionId = 0
@@ -97,7 +104,7 @@ class DualCameraViewModel(
     /** The PiP window was dragged by fractions of its free space (see [PipPosition]). */
     fun onPipDragged(dx: Float, dy: Float) {
         if (!uiState.value.canMovePip) return
-        uiState.update { it.copy(pipPosition = it.pipPosition.movedBy(dx, dy)) }
+        pipPosition.update { it.movedBy(dx, dy) }
     }
 
     fun onPhotoClick() {
@@ -224,38 +231,44 @@ class DualCameraViewModel(
     }
 
     private fun startCamera2Recording() {
-        if (repository.isCamera2Recording) return
+        if (camera2RecordingJob?.isActive == true) return
         val layout = previewLayout ?: run {
             effects.tryEmit(DualCameraEffect.Error(R.string.dual_camera_record_failed))
             return
         }
         val state = uiState.value
-        val firstFrameRecorded = repository
-            .startCamera2Recording(layout, state.isSwapped, state.isSingleCamera)
-            .getOrElse { e ->
+        // isCapturing blocks the buttons while the recorder is set up (off the main thread).
+        uiState.update { it.copy(isCapturing = true) }
+        camera2RecordingJob = viewModelScope.launch {
+            val started = try {
+                repository.startCamera2Recording(layout, state.isSwapped, state.isSingleCamera)
+            } finally {
+                uiState.update { it.copy(isCapturing = false) }
+            }
+            val firstFrameRecorded = started.getOrElse { e ->
                 Log.e(TAG, "Failed to start Camera2 recording", e)
-                effects.tryEmit(DualCameraEffect.Error(R.string.dual_camera_record_failed))
-                return
+                effects.emit(DualCameraEffect.Error(R.string.dual_camera_record_failed))
+                return@launch
             }
 
-        uiState.update { it.copy(isRecording = true, recordedDurationMs = 0L) }
-        camera2DurationJob = viewModelScope.launch {
+            uiState.update { it.copy(isRecording = true, recordedDurationMs = 0L) }
             // Count from the first recorded frame so the timer matches the saved video.
             firstFrameRecorded.first { it }
             val startedAt = SystemClock.elapsedRealtime()
             while (true) {
-                delay(500)
-                uiState.update {
-                    it.copy(recordedDurationMs = SystemClock.elapsedRealtime() - startedAt)
-                }
+                val elapsedMs = SystemClock.elapsedRealtime() - startedAt
+                // Whole seconds (the indicator shows mm:ss): one recomposition per second.
+                uiState.update { it.copy(recordedDurationMs = elapsedMs / 1_000 * 1_000) }
+                delay(1_000 - elapsedMs % 1_000)
             }
         }
     }
 
     private fun stopCamera2Recording() {
+        // Stops the timer, or discards a recorder still being set up.
+        camera2RecordingJob?.cancel()
+        camera2RecordingJob = null
         if (!repository.isCamera2Recording) return
-        camera2DurationJob?.cancel()
-        camera2DurationJob = null
         // isCapturing blocks the buttons while the file is finalized.
         uiState.update { it.copy(isRecording = false, recordedDurationMs = 0L, isCapturing = true) }
 
@@ -282,7 +295,8 @@ class DualCameraViewModel(
                     uiState.update { it.copy(isRecording = true, recordedDurationMs = 0L) }
                 },
                 onDuration = { durationMs ->
-                    uiState.update { it.copy(recordedDurationMs = durationMs) }
+                    // Status events come many times a second; the indicator shows whole seconds.
+                    uiState.update { it.copy(recordedDurationMs = durationMs / 1_000 * 1_000) }
                 },
             )
             // Back to Photo binding so the shutter is instant again.
@@ -300,7 +314,7 @@ class DualCameraViewModel(
     }
 
     override fun onCleared() {
-        camera2DurationJob?.cancel()
+        camera2RecordingJob?.cancel()
         repository.release()
         super.onCleared()
     }

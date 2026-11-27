@@ -44,6 +44,13 @@ class ReactionViewModel(
     val effects: SharedFlow<ReactionEffect>
         field = MutableSharedFlow(extraBufferCapacity = 4)
 
+    /**
+     * Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. Kept out
+     * of [uiState] so a drag only moves the window: the screen reads it in the layout phase.
+     */
+    val pipPosition: StateFlow<PipPosition>
+        field = MutableStateFlow(PipPosition.BottomLeft)
+
     /** Camera preview, rendered by the screen's viewfinder. */
     val surfaceRequest: StateFlow<SurfaceRequest?> = repository.surfaceRequest
 
@@ -104,7 +111,7 @@ class ReactionViewModel(
     /** The PiP window was dragged by fractions of its free space (see [PipPosition]). */
     fun onPipDragged(dx: Float, dy: Float) {
         if (!uiState.value.canMovePip) return
-        uiState.update { it.copy(pipPosition = it.pipPosition.movedBy(dx, dy)) }
+        pipPosition.update { it.movedBy(dx, dy) }
     }
 
     fun onAudioModeSelected(mode: DualAudioMode) {
@@ -165,7 +172,9 @@ class ReactionViewModel(
                     player.play()
                 },
                 onDuration = { durationMs ->
-                    uiState.update { it.copy(recordedDurationMs = durationMs) }
+                    // Status events come many times a second; the screen shows whole seconds,
+                    // so equal values don't emit and the screen recomposes once a second.
+                    uiState.update { it.copy(recordedDurationMs = durationMs / 1_000 * 1_000) }
                 },
             )
             player.pause()
@@ -197,7 +206,7 @@ class ReactionViewModel(
                 audioMode = state.audioMode,
                 reactionFullScreen = state.reactionWindowFullScreen,
                 pipCanvasAspectRatio = stageAspectRatio,
-                pipPosition = state.pipPosition,
+                pipPosition = pipPosition.value,
                 onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
             ).fold(
                 onSuccess = { uri -> effects.emit(ReactionEffect.VideoSaved(uri)) },

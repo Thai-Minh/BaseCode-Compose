@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -60,6 +61,7 @@ import com.looper.base.screen.combiner.data.CombinerLayout
 import com.looper.base.screen.combiner.data.CombinerUiState
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
 import com.looper.base.screen.common.ui.dragAfterLongPress
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -74,6 +76,8 @@ fun CombinerScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Not read here: the PiP window reads it in the layout phase (see CombinerStage).
+    val pipPositionState = viewModel.pipPosition.collectAsStateWithLifecycle()
 
     val mainPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -118,6 +122,7 @@ fun CombinerScreen(
                 state = uiState,
                 mainPlayer = viewModel.mainPlayer,
                 overlayPlayer = viewModel.overlayPlayer,
+                pipPosition = { pipPositionState.value },
                 onPickMain = pickMain,
                 onPickOverlay = pickOverlay,
                 onPipDragged = viewModel::onPipDragged,
@@ -204,6 +209,7 @@ private fun CombinerStage(
     state: CombinerUiState,
     mainPlayer: Player,
     overlayPlayer: Player,
+    pipPosition: () -> PipPosition,
     onPickMain: () -> Unit,
     onPickOverlay: () -> Unit,
     onPipDragged: (dx: Float, dy: Float) -> Unit,
@@ -223,31 +229,42 @@ private fun CombinerStage(
             Modifier
         }
         BoxWithConstraints(modifier = stageModifier.then(stageBackground)) {
+            // The window is laid out at the top-left of its free space and shifted to the drag
+            // position in the layout phase: moving it doesn't recompose the stage.
             val (firstRect, secondRect) = CombinerLayout.slots(
                 canvasWidth = constraints.maxWidth.toFloat(),
                 canvasHeight = constraints.maxHeight.toFloat(),
                 arrangement = state.arrangement,
                 firstAspectRatio = state.fullAspectRatio,
                 secondAspectRatio = state.windowAspectRatio,
-                pipPosition = state.pipPosition,
+                pipPosition = PipPosition.TopLeft,
             )
-            val density = LocalDensity.current
-            val fullSlot = Modifier.placedAt(firstRect, density).zIndex(0f)
-            val windowSlot = Modifier.placedAt(secondRect, density).zIndex(1f)
-
-            // Custom layout: long-press the window, then drag it (fractions of its free space).
-            // Detected on the (static) stage so the moving window doesn't skew the drag amounts.
-            val currentWindow by rememberUpdatedState(secondRect)
-            val moveWindow = if (state.canMovePip) {
-                val (rangeX, rangeY) = CombinerLayout.pipRange(
+            val (rangeX, rangeY) = if (state.arrangement.isPip) {
+                CombinerLayout.pipRange(
                     firstRect.width,
                     firstRect.height,
                     secondRect.width,
                     secondRect.height,
                 )
+            } else {
+                0f to 0f
+            }
+            val windowShift = {
+                val position = pipPosition()
+                Offset(position.x * rangeX, position.y * rangeY)
+            }
+            val density = LocalDensity.current
+            val fullSlot = Modifier.placedAt(firstRect, density).zIndex(0f)
+            val windowSlot = Modifier.placedAt(secondRect, density, windowShift).zIndex(1f)
+
+            // Custom layout: long-press the window, then drag it (fractions of its free space).
+            // Detected on the (static) stage so the moving window doesn't skew the drag amounts.
+            val currentWindow by rememberUpdatedState(secondRect)
+            val currentShift by rememberUpdatedState(windowShift)
+            val moveWindow = if (state.canMovePip) {
                 Modifier.dragAfterLongPress(
                     key = rangeX to rangeY,
-                    startsIn = { it in currentWindow },
+                    startsIn = { point -> (point - currentShift()) in currentWindow },
                     onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
                     onDrag = { delta ->
                         onPipDragged(
