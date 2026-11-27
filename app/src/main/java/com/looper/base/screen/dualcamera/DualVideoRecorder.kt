@@ -62,20 +62,24 @@ private const val FIRST_FRAME_GRACE_NS = 3_000_000_000L
 /** A camera that stops delivering frames for this long is considered failed (red). */
 private const val STALE_FRAME_NS = 1_000_000_000L
 
-private val FAILED_COLOR = floatArrayOf(
-    ((PreviewLayout.FAILED_CAMERA_COLOR shr 16) and 0xFF) / 255f,
-    ((PreviewLayout.FAILED_CAMERA_COLOR shr 8) and 0xFF) / 255f,
-    (PreviewLayout.FAILED_CAMERA_COLOR and 0xFF) / 255f,
+private val FAILED_COLOR = glColor(PreviewLayout.FAILED_CAMERA_COLOR)
+
+/** An opaque ARGB color int as GL RGBA components. */
+private fun glColor(argb: Int) = floatArrayOf(
+    ((argb shr 16) and 0xFF) / 255f,
+    ((argb shr 8) and 0xFF) / 255f,
+    (argb and 0xFF) / 255f,
     1f,
 )
 
 /**
  * Records the Camera2 dual preview into one MP4 that looks exactly like the screen, in any
- * [PreviewLayout] (split halves or full screen + rounded PiP).
+ * [PreviewLayout] (split halves or full screen + PiP).
  *
  * Each camera streams into its own [SurfaceTexture] ([backSurface] / [frontSurface]); a GL
  * thread composites the latest frames at 30 fps into the encoder's input surface. A camera
  * that has no stream, never delivers a frame, or stops delivering frames is painted red.
+ * [secondPlaceholderColor] fills the second slot instead of a camera (single-camera mode).
  * Audio (optional) is recorded from the microphone as AAC.
  *
  * Call [stop] to finalize and save into `Movies/DualCamera`, or [cancel] to discard.
@@ -87,6 +91,7 @@ class DualVideoRecorder(
     backStream: Camera2StreamInfo?,
     frontStream: Camera2StreamInfo?,
     withAudio: Boolean,
+    secondPlaceholderColor: Int? = null,
 ) {
     /** Camera output for the back / front camera, null if that camera has no stream. */
     val backSurface: Surface?
@@ -172,7 +177,12 @@ class DualVideoRecorder(
             val (mainInput, secondInput) =
                 if (isSwapped) frontInput to backInput else backInput to frontInput
             mainSlot = Slot(mainInput, mainRect, radius = 0f)
-            secondSlot = Slot(secondInput, secondRect, radius = layout.secondCornerRadius * scale)
+            secondSlot = Slot(
+                secondInput,
+                secondRect,
+                radius = layout.secondCornerRadius * scale,
+                placeholderColor = secondPlaceholderColor?.let(::glColor),
+            )
 
             videoEncoder.start()
             if (withAudio) {
@@ -246,7 +256,13 @@ class DualVideoRecorder(
         var lastFrameNanos = 0L
     }
 
-    private class Slot(val input: CameraInput?, val rect: FloatArray, val radius: Float)
+    private class Slot(
+        val input: CameraInput?,
+        val rect: FloatArray,
+        val radius: Float,
+        /** Drawn instead of [input] (the window in single-camera mode). */
+        val placeholderColor: FloatArray? = null,
+    )
 
     private fun createInput(stream: Camera2StreamInfo): CameraInput {
         val textureId = gl.createExternalTexture()
@@ -310,6 +326,7 @@ class DualVideoRecorder(
     private fun drawSlot(slot: Slot, now: Long) {
         val input = slot.input
         val color = when {
+            slot.placeholderColor != null -> slot.placeholderColor
             input == null -> FAILED_COLOR
             input.lastFrameNanos == 0L -> FAILED_COLOR
             now - input.lastFrameNanos > STALE_FRAME_NS -> FAILED_COLOR

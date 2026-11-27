@@ -61,14 +61,20 @@ object DualCameraMedia {
      * Renders the photo exactly as the preview looked on screen (WYSIWYG), for any
      * [PreviewLayout] (split halves or full screen + PiP):
      * - each camera is center-cropped into its rectangle, like the viewfinder's
-     *   `ContentScale.Crop` + `Alignment.Center`; [second] is drawn on top with rounded corners;
+     *   `ContentScale.Crop` + `Alignment.Center`; [second] is drawn on top of [main];
      * - a camera that delivered no frame (null) is painted [PreviewLayout.FAILED_CAMERA_COLOR],
-     *   like on screen; the viewport background is black.
+     *   like on screen; the viewport background is black;
+     * - [secondPlaceholderColor] fills the second slot instead of a camera (single-camera mode).
      *
      * Output resolution follows [main]'s native resolution in its rectangle (else [second]'s),
      * capped at [MAX_OUTPUT_PIXELS]; every on-screen measure in [layout] is scaled to it.
      */
-    fun composeLikePreview(main: Bitmap?, second: Bitmap?, layout: PreviewLayout): Bitmap {
+    fun composeLikePreview(
+        main: Bitmap?,
+        second: Bitmap?,
+        layout: PreviewLayout,
+        secondPlaceholderColor: Int? = null,
+    ): Bitmap {
         // Image px per on-screen px.
         val reference = when {
             main != null -> main to layout.main
@@ -92,7 +98,14 @@ object DualCameraMedia {
         val canvas = Canvas(result)
         canvas.drawColor(android.graphics.Color.BLACK)
         drawSlot(canvas, main, layout.main, cornerRadius = 0f, toImage)
-        drawSlot(canvas, second, layout.second, layout.secondCornerRadius, toImage)
+        drawSlot(
+            canvas = canvas,
+            bitmap = second.takeIf { secondPlaceholderColor == null },
+            rect = layout.second,
+            cornerRadius = layout.secondCornerRadius,
+            toImage = toImage,
+            emptyColor = secondPlaceholderColor ?: PreviewLayout.FAILED_CAMERA_COLOR,
+        )
         return result
     }
 
@@ -102,6 +115,7 @@ object DualCameraMedia {
         rect: LayoutRect,
         cornerRadius: Float,
         toImage: Float,
+        emptyColor: Int = PreviewLayout.FAILED_CAMERA_COLOR,
     ) {
         val dst = RectF(
             rect.left * toImage,
@@ -124,7 +138,7 @@ object DualCameraMedia {
                     Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
                 )
             } else {
-                drawColor(PreviewLayout.FAILED_CAMERA_COLOR)
+                drawColor(emptyColor)
             }
         }
     }

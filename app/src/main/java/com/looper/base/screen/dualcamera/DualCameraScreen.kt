@@ -58,7 +58,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
@@ -196,6 +195,7 @@ fun DualCameraScreen(
                             Camera2DualPreview(
                                 cameraIds = ids,
                                 feedConfig = feedConfig,
+                                isSingleCamera = uiState.isSingleCamera,
                                 backHandle = viewModel.camera2Back,
                                 frontHandle = viewModel.camera2Front,
                             )
@@ -280,7 +280,7 @@ private fun CameraXFeed(surfaceRequest: SurfaceRequest, modifier: Modifier) {
 
 /**
  * Lays out the two camera feeds for [FeedConfig.layout]: two equal halves, or one full screen
- * plus a rounded PiP window that can be moved anywhere over it, up to its edges.
+ * plus a PiP window that can be moved anywhere over it, up to its edges.
  * [DualCameraMedia.composeLikePreview] and [DualVideoRecorder] render photos / videos from the
  * same measured geomety.
  *
@@ -314,11 +314,6 @@ private fun DualFeedLayout(
                 viewportHeight = viewport.height,
                 main = main.relative(),
                 second = second.relative(),
-                secondCornerRadius = if (layout.isPip) {
-                    second.width * PreviewLayout.PIP_CORNER_FRACTION
-                } else {
-                    0f
-                },
             ).croppedToContent() // Saved media has no empty bands (side by side layout).
         )
     }
@@ -328,7 +323,6 @@ private fun DualFeedLayout(
             .fillMaxSize()
             .onGloballyPositioned { viewportBounds = it.boundsInRoot() }
     ) {
-        val pipWidth = maxWidth * PreviewLayout.PIP_WIDTH_FRACTION
         val customPip = customPipPlacement(config.pipPosition)
 
         val (mainPlacement, secondPlacement) = when (layout) {
@@ -432,43 +426,90 @@ private fun BoxWithConstraintsScope.customPipPlacement(position: PipPosition): C
  * The back camera has priority: it is opened only after the front one has settled. When the
  * device can't keep both open, CameraService evicts the older client, so the back camera is
  * the one that keeps streaming (and gets captured).
+ *
+ * [isSingleCamera]: the device can't stream both cameras, so only the main one is opened (the
+ * front one when swapped) and the window shows a [CameraPlaceholder].
  */
 @Composable
 private fun Camera2DualPreview(
     cameraIds: Camera2CameraIds,
     feedConfig: FeedConfig,
+    isSingleCamera: Boolean,
     backHandle: Camera2CameraHandle,
     frontHandle: Camera2CameraHandle,
 ) {
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     if (!lifecycleState.isAtLeast(Lifecycle.State.STARTED)) return
 
-    // Fresh gate each time the cameras are (re)opened.
-    val frontSettled = remember(cameraIds) { MutableStateFlow(false) }
+    if (isSingleCamera) {
+        // Each camera is shown (so opened) only while it is the main one.
+        val isFrontMain = feedConfig.isSwapped
+        DualFeedLayout(
+            config = feedConfig,
+            back = { modifier ->
+                if (isFrontMain) {
+                    CameraPlaceholder(modifier)
+                } else {
+                    Camera2Viewfinder(
+                        cameraId = cameraIds.backId,
+                        implementationMode = ImplementationMode.EMBEDDED,
+                        handle = backHandle,
+                        modifier = modifier,
+                    )
+                }
+            },
+            front = { modifier ->
+                if (isFrontMain) {
+                    Camera2Viewfinder(
+                        cameraId = cameraIds.frontId,
+                        implementationMode = ImplementationMode.EMBEDDED,
+                        handle = frontHandle,
+                        modifier = modifier,
+                    )
+                } else {
+                    CameraPlaceholder(modifier)
+                }
+            },
+        )
+    } else {
+        // Fresh gate each time the cameras are (re)opened.
+        val frontSettled = remember(cameraIds) { MutableStateFlow(false) }
 
-    DualFeedLayout(
-        config = feedConfig,
-        back = { modifier ->
-            Camera2Viewfinder(
-                cameraId = cameraIds.backId,
-                implementationMode = ImplementationMode.EMBEDDED,
-                handle = backHandle,
-                awaitBeforeOpen = {
-                    withTimeoutOrNull(FRONT_OPEN_TIMEOUT_MS.milliseconds) { frontSettled.first { it } }
-                },
-                modifier = modifier,
-            )
-        },
-        front = { modifier ->
-            Camera2Viewfinder(
-                cameraId = cameraIds.frontId,
-                implementationMode = ImplementationMode.EMBEDDED,
-                handle = frontHandle,
-                onSettled = { frontSettled.value = true },
-                modifier = modifier,
-            )
-        },
-    )
+        DualFeedLayout(
+            config = feedConfig,
+            back = { modifier ->
+                Camera2Viewfinder(
+                    cameraId = cameraIds.backId,
+                    implementationMode = ImplementationMode.EMBEDDED,
+                    handle = backHandle,
+                    awaitBeforeOpen = {
+                        withTimeoutOrNull(FRONT_OPEN_TIMEOUT_MS.milliseconds) {
+                            frontSettled.first { it }
+                        }
+                    },
+                    modifier = modifier,
+                )
+            },
+            front = { modifier ->
+                Camera2Viewfinder(
+                    cameraId = cameraIds.frontId,
+                    implementationMode = ImplementationMode.EMBEDDED,
+                    handle = frontHandle,
+                    onSettled = { frontSettled.value = true },
+                    modifier = modifier,
+                )
+            },
+        )
+    }
+}
+
+/**
+ * The window in single-camera mode: no camera, only [PreviewLayout.PLACEHOLDER_COLOR] (saved
+ * photos / videos fill the window with the same color).
+ */
+@Composable
+private fun CameraPlaceholder(modifier: Modifier) {
+    Box(modifier = modifier.background(Color(PreviewLayout.FAILED_CAMERA_COLOR)))
 }
 
 @Composable

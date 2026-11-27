@@ -19,8 +19,8 @@ enum class DualCameraSupport {
 
     /**
      * Both cameras opened directly with Camera2 (preview, photo and composited video in every
-     * layout). Used on all devices by default; without concurrent support the HAL may refuse
-     * one camera, which is then shown / recorded as red.
+     * layout). Used on all devices by default; without concurrent support only the main camera
+     * is opened (see [DualCameraUiState.isSingleCamera]).
      */
     Camera2Fallback,
 
@@ -41,6 +41,12 @@ data class DualCameraUiState(
     val mode: DualCaptureMode = DualCaptureMode.Photo,
     val support: DualCameraSupport = DualCameraSupport.Checking,
     val camera2Ids: Camera2CameraIds? = null,
+    /**
+     * Camera2: the device can't stream the front and back cameras at once, so only the main
+     * (full-screen) camera is opened and the window shows a placeholder. [isSwapped] then picks
+     * that camera: swapping switches between the back and front camera.
+     */
+    val isSingleCamera: Boolean = false,
     val isCameraBound: Boolean = false,
     /** false: back camera is the main feed. true: front camera is the main feed. */
     val isSwapped: Boolean = false,

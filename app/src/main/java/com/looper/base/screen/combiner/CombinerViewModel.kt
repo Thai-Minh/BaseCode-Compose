@@ -9,33 +9,29 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.looper.base.R
+import com.looper.base.repository.combiner.ICombinerRepository
 import com.looper.base.screen.combiner.data.CombinerEffect
 import com.looper.base.screen.combiner.data.CombinerUiState
 import com.looper.base.screen.combiner.data.CombinerVideo
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.common.data.PipPosition
-import com.looper.base.screen.dualcamera.DualCameraMedia
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private const val TAG = "CombinerViewModel"
-private const val ALBUM_NAME = "Combiner"
-private const val FILE_PREFIX = "COMBINE_"
 
 /**
- * Video combiner: two videos picked from the device are previewed together and composited by
- * [CombinerExporter] into `Movies/Combiner`.
+ * Video combiner: two videos picked from the device are previewed together, then
+ * [ICombinerRepository] composites them into `Movies/Combiner`.
  */
 class CombinerViewModel(
-    private val app: Application,
+    app: Application,
+    private val repository: ICombinerRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<CombinerUiState>
@@ -47,8 +43,6 @@ class CombinerViewModel(
     val mainPlayer: ExoPlayer = ExoPlayer.Builder(app).build()
     val overlayPlayer: ExoPlayer = ExoPlayer.Builder(app).build()
     private val players = listOf(mainPlayer, overlayPlayer)
-
-    private val exporter = CombinerExporter(app)
 
     private val previewListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
@@ -113,45 +107,31 @@ class CombinerViewModel(
 
     fun onCombineClick() {
         val state = uiState.value
-        val full = state.fullVideo ?: return
-        val window = state.windowVideo ?: return
+        val mainVideo = state.mainVideo ?: return
+        val overlayVideo = state.overlayVideo ?: return
         if (!state.canEdit) return
-
-        // v1 = the main video's sound, v2 = the overlay's, wherever each one is shown.
-        val keepsMainAudio = state.audioMode.keepsMain
-        val keepsOverlayAudio = state.audioMode.keepsSecondary
 
         pausePreview()
         uiState.update { it.copy(isExporting = true, exportProgress = 0) }
         viewModelScope.launch {
             try {
-                val output = exporter.export(
-                    firstWidth = full.width,
-                    firstHeight = full.height,
-                    full = full.toSource(
-                        if (state.overlayFullScreen) keepsOverlayAudio else keepsMainAudio
-                    ),
-                    window = window.toSource(
-                        if (state.overlayFullScreen) keepsMainAudio else keepsOverlayAudio
-                    ),
-                    windowAspectRatio = window.aspectRatio,
+                repository.combine(
+                    mainVideo = mainVideo,
+                    overlayVideo = overlayVideo,
+                    overlayFullScreen = state.overlayFullScreen,
                     arrangement = state.arrangement,
+                    audioMode = state.audioMode,
                     pipPosition = state.pipPosition,
-                    onProgress = { progress -> uiState.update { it.copy(exportProgress = progress) } },
+                    onProgress = { progress ->
+                        uiState.update { it.copy(exportProgress = progress) }
+                    },
+                ).fold(
+                    onSuccess = { uri -> effects.emit(CombinerEffect.VideoSaved(uri)) },
+                    onFailure = { e ->
+                        Log.e(TAG, "Export failed", e)
+                        effects.emit(CombinerEffect.Error(R.string.combiner_export_failed))
+                    },
                 )
-                val uri = withContext(Dispatchers.IO) {
-                    try {
-                        DualCameraMedia.saveVideoFile(app, output, ALBUM_NAME, FILE_PREFIX)
-                    } finally {
-                        output.delete()
-                    }
-                }
-                effects.emit(CombinerEffect.VideoSaved(uri))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "Export failed", e)
-                effects.emit(CombinerEffect.Error(R.string.combiner_export_failed))
             } finally {
                 uiState.update { it.copy(isExporting = false, exportProgress = 0) }
             }
@@ -170,7 +150,7 @@ class CombinerViewModel(
     ) {
         if (uri == null || !uiState.value.canEdit) return
         viewModelScope.launch {
-            val video = withContext(Dispatchers.IO) { CombinerVideo.read(app, uri) }
+            val video = repository.readVideo(uri)
             if (video == null) {
                 effects.emit(CombinerEffect.Error(R.string.combiner_video_failed))
                 return@launch
@@ -192,9 +172,6 @@ class CombinerViewModel(
         mainPlayer.volume = if (mode.keepsMain) 1f else 0f
         overlayPlayer.volume = if (mode.keepsSecondary) 1f else 0f
     }
-
-    private fun CombinerVideo.toSource(keepAudio: Boolean) =
-        CombinerExporter.Source(uri, durationUs, keepAudio)
 
     override fun onCleared() {
         players.forEachIndexed { index, player ->

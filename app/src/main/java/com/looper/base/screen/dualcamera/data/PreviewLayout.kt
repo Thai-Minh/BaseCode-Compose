@@ -18,14 +18,14 @@ data class LayoutRect(
  * what the user saw.
  *
  * [main] is the camera drawn first (full screen in PiP layouts), [second] is drawn on top of it
- * with [secondCornerRadius] (0 for split layouts).
+ * with [secondCornerRadius] (0: square corners, like the on-screen window).
  */
 data class PreviewLayout(
     val viewportWidth: Float,
     val viewportHeight: Float,
     val main: LayoutRect,
     val second: LayoutRect,
-    val secondCornerRadius: Float,
+    val secondCornerRadius: Float = 0f,
 ) {
     /**
      * Same layout restricted to the area the feeds cover (e.g. side by side halves don't fill
@@ -59,9 +59,6 @@ data class PreviewLayout(
         /** PiP width / height. */
         const val PIP_ASPECT_RATIO = 9f / 16f
 
-        /** PiP corner radius relative to the PiP width. */
-        const val PIP_CORNER_FRACTION = 0.1f
-
         /** Fill color of a camera that couldn't deliver frames, on screen and in the output. */
         const val FAILED_CAMERA_COLOR = 0xFFFF0000.toInt()
 
@@ -78,7 +75,6 @@ data class PreviewLayout(
                     width = pipWidth,
                     height = pipWidth / PIP_ASPECT_RATIO,
                 ),
-                secondCornerRadius = pipWidth * PIP_CORNER_FRACTION,
             )
         }
     }
