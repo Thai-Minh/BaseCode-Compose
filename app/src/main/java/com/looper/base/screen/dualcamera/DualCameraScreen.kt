@@ -1,6 +1,7 @@
 package com.looper.base.screen.dualcamera
 
 import android.Manifest
+import android.R.attr.onClick
 import android.content.Context
 import android.content.pm.PackageManager
 import android.widget.Toast
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
@@ -57,8 +59,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -87,16 +89,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import com.looper.base.R
+import com.looper.base.screen.common.data.DualLayout
+import com.looper.base.screen.common.data.PipPosition
+import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.dualcamera.data.Camera2CameraIds
 import com.looper.base.screen.dualcamera.data.DualCameraEffect
 import com.looper.base.screen.dualcamera.data.DualCameraSupport
 import com.looper.base.screen.dualcamera.data.DualCameraUiState
 import com.looper.base.screen.dualcamera.data.DualCaptureMode
-import com.looper.base.screen.common.data.DualLayout
-import com.looper.base.screen.common.data.PipPosition
-import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.dualcamera.data.LayoutRect
 import com.looper.base.screen.dualcamera.data.PreviewLayout
+import com.looper.base.utils.clickableWhiteColor
+import com.looper.base.utils.clip
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -161,10 +165,11 @@ fun DualCameraScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .statusBarsPadding()
     ) {
         when {
             !hasCameraPermission -> MessageContent(
@@ -191,25 +196,32 @@ fun DualCameraScreen(
                     onPipDragged = if (uiState.canMovePip) viewModel::onPipDragged else null,
                 )
 
-                if (uiState.support == DualCameraSupport.Camera2Fallback) {
-                    uiState.camera2Ids?.let { ids ->
-                        Camera2DualPreview(
-                            cameraIds = ids,
+                TopGroup(
+                    uiState = uiState,
+                    onClose = onClose
+                )
+
+                Box(modifier = Modifier.weight(1f)) {
+                    if (uiState.support == DualCameraSupport.Camera2Fallback) {
+                        uiState.camera2Ids?.let { ids ->
+                            Camera2DualPreview(
+                                cameraIds = ids,
+                                feedConfig = feedConfig,
+                                backHandle = viewModel.camera2Back,
+                                frontHandle = viewModel.camera2Front,
+                            )
+                        }
+                    } else {
+                        CameraXPreview(
+                            uiState = uiState,
                             feedConfig = feedConfig,
-                            backHandle = viewModel.camera2Back,
-                            frontHandle = viewModel.camera2Front,
+                            primaryRequest = primaryRequest,
+                            secondaryRequest = secondaryRequest,
                         )
                     }
-                } else {
-                    CameraXPreview(
-                        uiState = uiState,
-                        feedConfig = feedConfig,
-                        primaryRequest = primaryRequest,
-                        secondaryRequest = secondaryRequest,
-                    )
                 }
 
-                CameraOverlay(
+                BottomGroup(
                     uiState = uiState,
                     onLayoutSelected = viewModel::onLayoutSelected,
                     onSwapClick = viewModel::onSwapClick,
@@ -219,14 +231,6 @@ fun DualCameraScreen(
                 )
             }
         }
-
-        CloseButton(
-            onClick = onClose,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(8.dp)
-        )
     }
 }
 
@@ -359,8 +363,14 @@ private fun DualFeedLayout(
 
         val (mainPlacement, secondPlacement) = when (layout) {
             DualLayout.SplitVertical ->
-                Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(0.5f) to
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f)
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.5f) to
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.5f)
 
             // Full width, height from the camera's portrait aspect, vertically centered.
             DualLayout.SplitHorizontal ->
@@ -368,13 +378,13 @@ private fun DualFeedLayout(
                     .align(Alignment.CenterStart)
                     .fillMaxWidth(0.5f)
                     .aspectRatio(PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO) to
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxWidth(0.5f)
-                        .aspectRatio(PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO)
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxWidth(0.5f)
+                            .aspectRatio(PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO)
 
             else -> Modifier.fillMaxSize() to
-                (customPip?.modifier ?: pipPlacement(layout, bottomReserved))
+                    (customPip?.modifier ?: pipPlacement(layout, bottomReserved))
         }
 
         // Custom layout: long-press the window, then drag it (fractions of its free space).
@@ -387,7 +397,7 @@ private fun DualFeedLayout(
                     val viewport = viewportBounds
                     val second = secondBounds
                     viewport != null && second != null &&
-                        second.translate(-viewport.left, -viewport.top).contains(position)
+                            second.translate(-viewport.left, -viewport.top).contains(position)
                 },
                 onDragStart = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
                 onDrag = { delta ->
@@ -414,7 +424,9 @@ private fun DualFeedLayout(
             .clip(secondShape)
             .background(Color.DarkGray)
 
-        Box(modifier = Modifier.fillMaxSize().then(moveWindow)) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .then(moveWindow)) {
             back(if (config.isSwapped) secondModifier else mainModifier)
             front(if (config.isSwapped) mainModifier else secondModifier)
         }
@@ -530,7 +542,34 @@ private fun Camera2DualPreview(
 }
 
 @Composable
-private fun CameraOverlay(
+private fun TopGroup(
+    uiState: DualCameraUiState,
+    onClose: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        if (uiState.isRecording) {
+            RecordingIndicator(
+                durationMs = uiState.recordedDurationMs,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(8.dp)
+            )
+        }
+
+        Text(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .clip(CircleShape)
+                .clickableWhiteColor(onClick = onClose)
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            text = stringResource(R.string.dual_camera_close),
+            color = Color.White,
+        )
+    }
+}
+
+@Composable
+private fun BottomGroup(
     uiState: DualCameraUiState,
     onLayoutSelected: (DualLayout) -> Unit,
     onSwapClick: () -> Unit,
@@ -538,49 +577,38 @@ private fun CameraOverlay(
     onVideoClick: () -> Unit,
     onControlsTop: (Float) -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (uiState.isRecording) {
-            RecordingIndicator(
-                durationMs = uiState.recordedDurationMs,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(top = 16.dp)
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .onGloballyPositioned { onControlsTop(it.boundsInRoot().top) }
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(bottom = 24.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { onControlsTop(it.boundsInRoot().top) }
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(bottom = 24.dp)
+    ) {
+        LayoutPicker(
+            selected = uiState.layout,
+            enabled = uiState.canEditLayout,
+            onSelect = onLayoutSelected,
+        )
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            LayoutPicker(
-                selected = uiState.layout,
-                enabled = uiState.canEditLayout,
-                onSelect = onLayoutSelected,
+            SwapButton(enabled = uiState.canEditLayout, onClick = onSwapClick)
+
+            PhotoButton(
+                enabled = uiState.isPhotoEnabled,
+                isCapturing = uiState.isCapturing,
+                onClick = onPhotoClick,
             )
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                SwapButton(enabled = uiState.canEditLayout, onClick = onSwapClick)
-                PhotoButton(
-                    enabled = uiState.isPhotoEnabled,
-                    isCapturing = uiState.isCapturing,
-                    onClick = onPhotoClick,
-                )
-                VideoButton(
-                    enabled = uiState.isVideoEnabled,
-                    isRecording = uiState.isRecording,
-                    onClick = onVideoClick,
-                )
-            }
+
+            VideoButton(
+                enabled = uiState.isVideoEnabled,
+                isRecording = uiState.isRecording,
+                onClick = onVideoClick,
+            )
         }
     }
 }
@@ -654,7 +682,8 @@ private fun LayoutDiagram(layout: DualLayout, color: Color, modifier: Modifier =
 
             DualLayout.SplitHorizontal -> {
                 val half = (width - gap) / 2
-                val halfHeight = (half / PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO).coerceAtMost(height)
+                val halfHeight =
+                    (half / PreviewLayout.SPLIT_HORIZONTAL_ASPECT_RATIO).coerceAtMost(height)
                 val y = top + (height - halfHeight) / 2
                 drawRect(faded, Offset(left, y), Size(half, halfHeight))
                 drawRect(color, Offset(left + half + gap, y), Size(half, halfHeight))
@@ -780,9 +809,6 @@ private fun RecordingIndicator(durationMs: Long, modifier: Modifier = Modifier) 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(Color.Black.copy(alpha = 0.5f))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Box(
             Modifier
@@ -795,16 +821,6 @@ private fun RecordingIndicator(durationMs: Long, modifier: Modifier = Modifier) 
             text = String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60),
             color = Color.White,
             fontSize = 14.sp,
-        )
-    }
-}
-
-@Composable
-private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    TextButton(onClick = onClick, modifier = modifier) {
-        Text(
-            text = stringResource(R.string.dual_camera_close),
-            color = Color.White,
         )
     }
 }
