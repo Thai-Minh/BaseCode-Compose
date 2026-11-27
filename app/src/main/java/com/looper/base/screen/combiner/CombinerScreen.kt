@@ -64,7 +64,7 @@ import com.looper.base.screen.common.ui.dragAfterLongPress
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Same layout and controls as the reaction screen, but the corner window shows a second video
+ * Same layout and controls as the reaction screen, but the PiP window shows a second video
  * picked from the device instead of the camera.
  */
 @Composable
@@ -100,7 +100,7 @@ fun CombinerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScreenBackground)
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
@@ -163,23 +163,23 @@ private fun TopBar(
             onClick = onBack,
         )
         Spacer(modifier = Modifier.weight(1f))
-        if (state.mainVideo != null) {
-            val enabled = state.canEdit
-            TextButton(onClick = onChangeMain, enabled = enabled) {
-                Text(
-                    text = stringResource(R.string.combiner_change_main),
-                    color = if (enabled) Color.White else Color.White.copy(alpha = 0.4f),
-                )
-            }
-        }
-        if (state.overlayVideo != null) {
-            CircleIconButton(
-                iconRes = R.drawable.ic_reaction_video,
-                label = stringResource(R.string.combiner_change_overlay),
-                onClick = onChangeOverlay,
-                enabled = state.canEdit,
-            )
-        }
+//        if (state.mainVideo != null) {
+//            val enabled = state.canEdit
+//            TextButton(onClick = onChangeMain, enabled = enabled) {
+//                Text(
+//                    text = stringResource(R.string.combiner_change_main),
+//                    color = if (enabled) Color.White else Color.White.copy(alpha = 0.4f),
+//                )
+//            }
+//        }
+//        if (state.overlayVideo != null) {
+//            CircleIconButton(
+//                iconRes = R.drawable.ic_reaction_video,
+//                label = stringResource(R.string.combiner_change_overlay),
+//                onClick = onChangeOverlay,
+//                enabled = state.canEdit,
+//            )
+//        }
         if (state.isReady) {
             CircleIconButton(
                 iconRes = R.drawable.ic_dual_camera_swap,
@@ -193,7 +193,7 @@ private fun TopBar(
 
 /**
  * The canvas: in PiP layouts the first video's aspect ratio, that video filling it and the other
- * in a corner window 1/3 of its width at its own aspect ratio; in split layouts a fixed frame
+ * in a movable window 1/3 of its width at its own aspect ratio; in split layouts a fixed frame
  * with one video per half. Uses [CombinerLayout] so the exported video has the same geometry.
  *
  * Both slots stay at fixed positions in the composition and only their modifiers change on swap
@@ -282,7 +282,6 @@ private fun CombinerStage(
                 // Overlay video slot.
                 Box(
                     modifier = (if (state.overlayFullScreen) fullSlot else windowSlot)
-                        .clip(if (overlayVideo != null) RectangleShape else RoundedCornerShape(12.dp))
                         .background(PlaceholderColor)
                         .clickable(onClick = onPickOverlay, enabled = state.canEdit),
                     contentAlignment = Alignment.Center,

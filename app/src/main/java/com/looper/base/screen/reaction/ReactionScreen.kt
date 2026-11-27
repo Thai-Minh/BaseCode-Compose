@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -134,7 +132,7 @@ fun ReactionScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScreenBackground)
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
@@ -197,15 +195,15 @@ private fun TopBar(
             onClick = onBack,
         )
         Spacer(modifier = Modifier.weight(1f))
-        if (state.background != null) {
-            val enabled = state.canEdit
-            TextButton(onClick = onChangeBackground, enabled = enabled) {
-                Text(
-                    text = stringResource(R.string.reaction_change_background),
-                    color = if (enabled) Color.White else Color.White.copy(alpha = 0.4f),
-                )
-            }
-        }
+//        if (state.background != null) {
+//            val enabled = state.canEdit
+//            TextButton(onClick = onChangeBackground, enabled = enabled) {
+//                Text(
+//                    text = stringResource(R.string.reaction_change_background),
+//                    color = if (enabled) Color.White else Color.White.copy(alpha = 0.4f),
+//                )
+//            }
+//        }
         if (state.isCameraOn) {
             CircleIconButton(
                 iconRes = R.drawable.ic_reaction_switch_camera,
@@ -227,7 +225,7 @@ private fun TopBar(
 
 /**
  * The canvas: in PiP layouts the whole stage, the full-frame camera filling it or the full-frame
- * video fitted at its original aspect ratio (black bands), and the other one in a corner window
+ * video fitted at its original aspect ratio (black bands), and the other one in a movable window
  * inside it (camera: 9:16 at 1/3 of its width, or 3:4 at 1/2 of its height when it is
  * landscape; video: 1/3 of its width); in split layouts a fixed frame
  * with one video per half. Uses
@@ -319,7 +317,8 @@ private fun ReactionStage(
                     isCameraOn = state.isCameraOn,
                     surfaceRequest = surfaceRequest,
                     modifier = if (state.reactionWindowFullScreen) fullSlot else windowSlot
-                        .clickable(onClick = onPickReaction, enabled = state.canEdit),
+                        .clickable(onClick = onPickReaction, enabled = state.canEdit)
+                        .background(PlaceholderColor),
                 )
             }
         }
@@ -334,9 +333,7 @@ private fun ReactionContent(
 ) {
     Box(
         modifier = modifier
-            // The live reaction is square-cornered like in the exported video.
-            .clip(if (isCameraOn) RectangleShape else RoundedCornerShape(12.dp))
-            .background(PlaceholderColor),
+        ,
         contentAlignment = Alignment.Center,
     ) {
         if (isCameraOn) {

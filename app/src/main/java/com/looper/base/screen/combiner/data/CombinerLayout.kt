@@ -17,12 +17,6 @@ object CombinerLayout {
     /** Width / height of an empty slot's placeholder (portrait 9:16). */
     const val PLACEHOLDER_ASPECT_RATIO = 9f / 16f
 
-    /** PiP distance from the canvas' edges, relative to its width. */
-    const val MARGIN_FRACTION = 0.03f
-
-    /** Margin in pixels for a canvas [mainWidth] wide. */
-    fun margin(mainWidth: Float): Float = mainWidth * MARGIN_FRACTION
-
     /**
      * Canvas width / height for videos of [firstAspectRatio] and [secondAspectRatio]
      * (width / height):
@@ -69,32 +63,27 @@ object CombinerLayout {
                 CombinerRect(half, (canvasHeight - secondHeight) / 2, canvasWidth - half, secondHeight)
         }
 
-        else -> {
+        DualLayout.PipCustom -> {
             val (width, height) = windowSize(canvasWidth, canvasHeight, secondAspectRatio)
-            val margin = margin(canvasWidth)
             val (rangeX, rangeY) = pipRange(canvasWidth, canvasHeight, width, height)
-            val left = margin + pipPosition.x * rangeX
-            val top = margin + pipPosition.y * rangeY
             CombinerRect(0f, 0f, canvasWidth, canvasHeight) to
-                CombinerRect(left, top, width, height)
+                CombinerRect(pipPosition.x * rangeX, pipPosition.y * rangeY, width, height)
         }
     }
 
     /**
      * How far (pixels) a [windowWidth] x [windowHeight] PiP window can move inside a
-     * [canvasWidth] x [canvasHeight] canvas (minus its margins): the span of [PipPosition] 0..1
-     * on each axis.
+     * [canvasWidth] x [canvasHeight] canvas, edge to edge: the span of [PipPosition] 0..1 on each
+     * axis.
      */
     fun pipRange(
         canvasWidth: Float,
         canvasHeight: Float,
         windowWidth: Float,
         windowHeight: Float,
-    ): Pair<Float, Float> {
-        val margin = margin(canvasWidth)
-        return (canvasWidth - 2 * margin - windowWidth).coerceAtLeast(0f) to
-            (canvasHeight - 2 * margin - windowHeight).coerceAtLeast(0f)
-    }
+    ): Pair<Float, Float> =
+        (canvasWidth - windowWidth).coerceAtLeast(0f) to
+            (canvasHeight - windowHeight).coerceAtLeast(0f)
 
     /**
      * PiP window size (width, height) at [aspectRatio] (width / height) inside a [mainWidth] x
@@ -106,18 +95,16 @@ object CombinerLayout {
         if (mainWidth > mainHeight) {
             var height = mainHeight * LANDSCAPE_HEIGHT_FRACTION
             var width = height * aspectRatio
-            val maxWidth = mainWidth - 2 * margin(mainWidth)
-            if (width > maxWidth) {
-                width = maxWidth
+            if (width > mainWidth) {
+                width = mainWidth
                 height = width / aspectRatio
             }
             return width to height
         }
         var width = mainWidth * WIDTH_FRACTION
         var height = width / aspectRatio
-        val maxHeight = mainHeight - 2 * margin(mainWidth)
-        if (height > maxHeight) {
-            height = maxHeight
+        if (height > mainHeight) {
+            height = mainHeight
             width = height * aspectRatio
         }
         return width to height

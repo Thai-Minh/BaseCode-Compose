@@ -56,9 +56,6 @@ data class PreviewLayout(
         /** PiP width relative to the viewport width. */
         const val PIP_WIDTH_FRACTION = 1f / 3f
 
-        /** PiP margin from the screen edges, relative to the viewport width. */
-        const val PIP_MARGIN_FRACTION = 0.03f
-
         /** PiP width / height. */
         const val PIP_ASPECT_RATIO = 9f / 16f
 
@@ -68,17 +65,16 @@ data class PreviewLayout(
         /** Fill color of a camera that couldn't deliver frames, on screen and in the output. */
         const val FAILED_CAMERA_COLOR = 0xFFFF0000.toInt()
 
-        /** Layout used when the preview was never measured: PiP in the top-end corner. */
+        /** Layout used when the preview was never measured: PiP against the top right corner. */
         fun default(viewportWidth: Float, viewportHeight: Float): PreviewLayout {
             val pipWidth = viewportWidth * PIP_WIDTH_FRACTION
-            val margin = viewportWidth * PIP_MARGIN_FRACTION
             return PreviewLayout(
                 viewportWidth = viewportWidth,
                 viewportHeight = viewportHeight,
                 main = LayoutRect(0f, 0f, viewportWidth, viewportHeight),
                 second = LayoutRect(
-                    left = viewportWidth - margin - pipWidth,
-                    top = margin,
+                    left = viewportWidth - pipWidth,
+                    top = 0f,
                     width = pipWidth,
                     height = pipWidth / PIP_ASPECT_RATIO,
                 ),

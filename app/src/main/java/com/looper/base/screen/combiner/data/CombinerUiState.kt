@@ -3,21 +3,20 @@ package com.looper.base.screen.combiner.data
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.common.data.PipPosition
-import com.looper.base.screen.common.data.pipPosition
 
 /**
  * Video combiner: a main video and an overlay video, both picked from the device, arranged by
- * [arrangement]: one full frame and the other in a corner window (1/3 of the width at its own
- * aspect ratio), or one per half of the frame.
+ * [arrangement]: one full frame and the other in a window movable anywhere over it (1/3 of the
+ * width at its own aspect ratio), or one per half of the frame.
  */
 data class CombinerUiState(
     val mainVideo: CombinerVideo? = null,
     val overlayVideo: CombinerVideo? = null,
     /** false: main video first (full frame / top / left); true: the overlay first. */
     val overlayFullScreen: Boolean = false,
-    val arrangement: DualLayout = DualLayout.PipBottomStart,
+    val arrangement: DualLayout = DualLayout.PipCustom,
     /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
-    val customPipPosition: PipPosition = PipPosition.of(DualLayout.PipBottomStart),
+    val pipPosition: PipPosition = PipPosition.BottomLeft,
     val audioMode: DualAudioMode = DualAudioMode.Both,
     /** Both videos are playing (or the longer one is, the shorter one holding its last frame). */
     val isPreviewPlaying: Boolean = false,
@@ -31,10 +30,6 @@ data class CombinerUiState(
     val isReady: Boolean get() = mainVideo != null && overlayVideo != null
 
     val canSwap: Boolean get() = isReady && canEdit
-
-    /** Where the PiP window sits: the layout's corner or the custom position. */
-    val pipPosition: PipPosition
-        get() = arrangement.pipPosition(customPipPosition)
 
     /** The PiP window can be dragged (custom layout, not while saving). */
     val canMovePip: Boolean

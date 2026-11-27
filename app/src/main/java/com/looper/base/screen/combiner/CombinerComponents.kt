@@ -60,12 +60,10 @@ import com.looper.base.screen.combiner.data.CombinerLayout
 import com.looper.base.screen.combiner.data.CombinerRect
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
-import com.looper.base.screen.common.data.PipPosition
 import kotlin.math.roundToInt
 
 /* UI pieces of the video combiner screen. */
 
-internal val ScreenBackground = Color(0xFF1C1B1B)
 internal val PlaceholderColor = Color(0xFF4A4A4A)
 private val PillColor = Color(0xFFC4C4C4)
 
@@ -188,7 +186,7 @@ private fun PillButton(
     }
 }
 
-/** The layout choices: 4 PiP corners, split vertical and split horizontal. */
+/** The layout choices: split vertical, split horizontal and the movable PiP window. */
 @Composable
 internal fun ArrangementSelector(
     selected: DualLayout,
@@ -260,20 +258,16 @@ private fun ArrangementOption(
                     )
                 }
 
-                else -> {
+                // Movable window: drawn in the middle.
+                DualLayout.PipCustom -> {
                     val windowWidth = size.width * CombinerLayout.WIDTH_FRACTION * 1.2f
                     val windowHeight = windowWidth / CombinerLayout.PLACEHOLDER_ASPECT_RATIO
-                    // Custom (movable) window: drawn in the middle, away from the corners.
-                    val position = if (arrangement == DualLayout.PipCustom) {
-                        PipPosition(0.5f, 0.5f)
-                    } else {
-                        PipPosition.of(arrangement)
-                    }
-                    val left = inset + position.x * (size.width - 2 * inset - windowWidth)
-                    val top = inset + position.y * (size.height - 2 * inset - windowHeight)
                     drawRect(
                         color = color,
-                        topLeft = Offset(left, top),
+                        topLeft = Offset(
+                            (size.width - windowWidth) / 2,
+                            (size.height - windowHeight) / 2,
+                        ),
                         size = Size(windowWidth, windowHeight),
                     )
                 }
@@ -357,10 +351,6 @@ internal operator fun CombinerRect.contains(point: Offset): Boolean =
 
 @StringRes
 private fun DualLayout.labelRes(): Int = when (this) {
-    DualLayout.PipTopStart -> R.string.combiner_corner_top_start
-    DualLayout.PipTopEnd -> R.string.combiner_corner_top_end
-    DualLayout.PipBottomStart -> R.string.combiner_corner_bottom_start
-    DualLayout.PipBottomEnd -> R.string.combiner_corner_bottom_end
     DualLayout.SplitVertical -> R.string.combiner_layout_split_vertical
     DualLayout.SplitHorizontal -> R.string.combiner_layout_split_horizontal
     DualLayout.PipCustom -> R.string.combiner_layout_pip_custom

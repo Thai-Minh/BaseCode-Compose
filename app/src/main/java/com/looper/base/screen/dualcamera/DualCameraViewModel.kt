@@ -137,23 +137,14 @@ class DualCameraViewModel(
 
     fun onLayoutSelected(layout: DualLayout) {
         if (!uiState.value.canEditLayout) return
-        uiState.update {
-            it.copy(
-                layout = layout,
-                // The movable window starts where the previous corner layout had it.
-                customPipPosition = if (layout == DualLayout.PipCustom) {
-                    PipPosition.whenSwitchingFrom(it.layout, it.customPipPosition)
-                } else {
-                    it.customPipPosition
-                },
-            )
-        }
+        // The PiP window keeps its position across layout changes.
+        uiState.update { it.copy(layout = layout) }
     }
 
-    /** The custom PiP window was dragged by fractions of its free space (see [PipPosition]). */
+    /** The PiP window was dragged by fractions of its free space (see [PipPosition]). */
     fun onPipDragged(dx: Float, dy: Float) {
         if (!uiState.value.canMovePip) return
-        uiState.update { it.copy(customPipPosition = it.customPipPosition.movedBy(dx, dy)) }
+        uiState.update { it.copy(pipPosition = it.pipPosition.movedBy(dx, dy)) }
     }
 
     fun onPhotoClick() {

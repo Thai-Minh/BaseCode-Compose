@@ -2,7 +2,6 @@ package com.looper.base.screen.dualcamera.data
 
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.common.data.PipPosition
-import com.looper.base.screen.common.data.pipPosition
 
 enum class DualCaptureMode {
     /** Two independent streams (Preview + ImageCapture per camera), merged into one photo. */
@@ -45,9 +44,9 @@ data class DualCameraUiState(
     val isCameraBound: Boolean = false,
     /** false: back camera is the main feed. true: front camera is the main feed. */
     val isSwapped: Boolean = false,
-    val layout: DualLayout = DualLayout.PipTopEnd,
+    val layout: DualLayout = DualLayout.PipCustom,
     /** Window position of [DualLayout.PipCustom], moved by long-pressing and dragging it. */
-    val customPipPosition: PipPosition = PipPosition.of(DualLayout.PipTopEnd),
+    val pipPosition: PipPosition = PipPosition.TopRight,
     val isCapturing: Boolean = false,
     val isRecording: Boolean = false,
     val recordedDurationMs: Long = 0L,
@@ -59,10 +58,6 @@ data class DualCameraUiState(
     /** Swap / layout changes. Disabled during video: the recorded layout is fixed at start. */
     val canEditLayout: Boolean
         get() = mode == DualCaptureMode.Photo && !isCapturing && !isRecording
-
-    /** Where the PiP window sits: the layout's corner or the custom position. */
-    val pipPosition: PipPosition
-        get() = layout.pipPosition(customPipPosition)
 
     /** The PiP window can be dragged (custom layout, same rules as other layout changes). */
     val canMovePip: Boolean

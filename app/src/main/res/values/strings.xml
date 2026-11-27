@@ -70,10 +70,6 @@
     <string name="dual_camera_swap">Swap cameras</string>
     <string name="dual_camera_layout_split_vertical">Top and bottom</string>
     <string name="dual_camera_layout_split_horizontal">Side by side</string>
-    <string name="dual_camera_layout_pip_top_start">Small window, top left</string>
-    <string name="dual_camera_layout_pip_top_end">Small window, top right</string>
-    <string name="dual_camera_layout_pip_bottom_start">Small window, bottom left</string>
-    <string name="dual_camera_layout_pip_bottom_end">Small window, bottom right</string>
     <string name="dual_camera_layout_pip_custom">Small window, long press to move</string>
     <string name="dual_camera_take_photo">Take photo</string>
     <string name="dual_camera_start_recording">Start recording</string>
@@ -104,10 +100,6 @@
     <string name="reaction_select_reaction">Select Reaction Video</string>
     <string name="reaction_start">Start reaction</string>
     <string name="reaction_stop">Stop reaction</string>
-    <string name="reaction_corner_top_start">Reaction top left</string>
-    <string name="reaction_corner_top_end">Reaction top right</string>
-    <string name="reaction_corner_bottom_start">Reaction bottom left</string>
-    <string name="reaction_corner_bottom_end">Reaction bottom right</string>
     <string name="reaction_layout_split_vertical">Split top and bottom</string>
     <string name="reaction_layout_split_horizontal">Split side by side</string>
     <string name="reaction_layout_pip_custom">Movable reaction, long press to move</string>
@@ -129,10 +121,6 @@
     <string name="combiner_select_overlay">Select Overlay Video</string>
     <string name="combiner_change_overlay">Change overlay video</string>
     <string name="combiner_swap_videos">Swap video positions</string>
-    <string name="combiner_corner_top_start">Overlay top left</string>
-    <string name="combiner_corner_top_end">Overlay top right</string>
-    <string name="combiner_corner_bottom_start">Overlay bottom left</string>
-    <string name="combiner_corner_bottom_end">Overlay bottom right</string>
     <string name="combiner_layout_split_vertical">Split top and bottom</string>
     <string name="combiner_layout_split_horizontal">Split side by side</string>
     <string name="combiner_layout_pip_custom">Movable overlay, long press to move</string>

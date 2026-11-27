@@ -66,7 +66,7 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
 
 /**
  * Composites two videos like the preview, in a [DualLayout]: one fills the frame and the
- * other sits in a corner window (1/3 of the width), or they are stacked / side by side. Every
+ * other sits in a movable window (1/3 of the width), or they are stacked / side by side. Every
  * video keeps its original aspect ratio. The output lasts as long as the longer video; the one
  * that ends first keeps showing its last frame until the end.
  *

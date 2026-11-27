@@ -8,8 +8,8 @@ import com.looper.base.screen.common.data.PipPosition
  * looks like the preview.
  *
  * PiP layouts use the whole stage as the canvas: the full-frame camera fills it, a full-frame
- * video is fitted at its original aspect ratio (centered, empty bands around it). The window sits
- * inside that full-frame area, with margins relative to it. The camera window follows the
+ * video is fitted at its original aspect ratio (centered, empty bands around it). The window can
+ * be moved anywhere inside that full-frame area, up to its edges. The camera window follows the
  * full-frame area's orientation: 9:16 and 1/3 of its width when it is portrait, 3:4 and 1/2 of
  * its height when it is landscape (the camera is center-cropped into it). A video window is 1/3
  * of its width at the video's own aspect ratio.
@@ -30,17 +30,11 @@ object ReactionLayout {
     /** Camera window width / height over a landscape full frame (3:4). */
     const val LANDSCAPE_CAMERA_ASPECT_RATIO = 3f / 4f
 
-    /** PiP distance from the full-frame area's edges, relative to its width. */
-    const val MARGIN_FRACTION = 0.03f
-
     /** Canvas width / height of [DualLayout.SplitVertical]: a portrait 9:16 frame. */
     const val SPLIT_VERTICAL_ASPECT_RATIO = 9f / 16f
 
     /** Canvas width / height of [DualLayout.SplitHorizontal]: two 9:16 halves. */
     const val SPLIT_HORIZONTAL_ASPECT_RATIO = 2 * 9f / 16f
-
-    /** Margin in pixels for a full-frame area [mainWidth] wide. */
-    fun margin(mainWidth: Float): Float = mainWidth * MARGIN_FRACTION
 
     /**
      * PiP window aspect ratio: the background video's own when it is in the window, null for the
@@ -70,8 +64,8 @@ object ReactionLayout {
      * Where the first and the second video go in a [canvasWidth] x [canvasHeight] canvas.
      * PiP only: [fullAspectRatio] fits the full-frame video at that aspect ratio (null fills the
      * canvas) and [windowAspectRatio] is the window's width / height (null for the camera
-     * window); the window is sized relative to the full-frame area and placed in it at
-     * [pipPosition] (a corner, or anywhere for [DualLayout.PipCustom]).
+     * window); the window is sized relative to the full-frame area and placed anywhere in it, up
+     * to its edges, at [pipPosition].
      */
     fun slots(
         canvasWidth: Float,
@@ -93,28 +87,25 @@ object ReactionLayout {
                 ReactionRect(half, 0f, canvasWidth - half, canvasHeight)
         }
 
-        else -> {
+        DualLayout.PipCustom -> {
             val full = fullAspectRatio
                 ?.let { fit(canvasWidth, canvasHeight, it) }
                 ?: ReactionRect(0f, 0f, canvasWidth, canvasHeight)
             val (width, height) = windowSize(full.width, full.height, windowAspectRatio)
-            val margin = margin(full.width)
             val (rangeX, rangeY) = pipRange(full, width, height)
-            val left = full.left + margin + pipPosition.x * rangeX
-            val top = full.top + margin + pipPosition.y * rangeY
+            val left = full.left + pipPosition.x * rangeX
+            val top = full.top + pipPosition.y * rangeY
             full to ReactionRect(left, top, width, height)
         }
     }
 
     /**
-     * How far (pixels) a [windowWidth] x [windowHeight] window can move inside [full] (minus its
-     * margins): the span of [PipPosition] 0..1 on each axis.
+     * How far (pixels) a [windowWidth] x [windowHeight] window can move inside [full], edge to
+     * edge: the span of [PipPosition] 0..1 on each axis.
      */
-    fun pipRange(full: ReactionRect, windowWidth: Float, windowHeight: Float): Pair<Float, Float> {
-        val margin = margin(full.width)
-        return (full.width - 2 * margin - windowWidth).coerceAtLeast(0f) to
-            (full.height - 2 * margin - windowHeight).coerceAtLeast(0f)
-    }
+    fun pipRange(full: ReactionRect, windowWidth: Float, windowHeight: Float): Pair<Float, Float> =
+        (full.width - windowWidth).coerceAtLeast(0f) to
+            (full.height - windowHeight).coerceAtLeast(0f)
 
     /** The largest [aspectRatio] rect centered in a [canvasWidth] x [canvasHeight] canvas. */
     private fun fit(canvasWidth: Float, canvasHeight: Float, aspectRatio: Float): ReactionRect {
@@ -131,7 +122,7 @@ object ReactionLayout {
      * - camera ([aspectRatio] null) over a portrait area: 9:16, 1/3 of its width;
      * - camera over a landscape (or square) area: 3:4, 1/2 of its height;
      * - video: 1/3 of its width at [aspectRatio] (width / height).
-     * Shrunk (keeping its aspect ratio) only if it wouldn't fit inside the area's margins.
+     * Shrunk (keeping its aspect ratio) only if it wouldn't fit inside the area.
      */
     fun windowSize(
         mainWidth: Float,
@@ -154,12 +145,7 @@ object ReactionLayout {
                 width to width / ASPECT_RATIO
             }
         }
-        val margin = margin(mainWidth)
-        val scale = minOf(
-            1f,
-            (mainWidth - 2 * margin) / width,
-            (mainHeight - 2 * margin) / height,
-        )
+        val scale = minOf(1f, mainWidth / width, mainHeight / height)
         width *= scale
         height *= scale
         return width to height

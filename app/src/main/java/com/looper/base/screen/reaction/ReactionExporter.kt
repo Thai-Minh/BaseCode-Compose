@@ -73,7 +73,7 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
  * Composites the background video and the reaction recording like the preview, in a
  * [DualLayout] (geometry from [ReactionLayout]): in PiP layouts the frame is the full-frame
  * video (its own size and aspect ratio) or the full-frame camera (the preview stage's aspect
- * ratio), with the other one in a corner window (camera: 9:16 at 1/3 of its width, or 3:4 at
+ * ratio), with the other one in a movable window (camera: 9:16 at 1/3 of its width, or 3:4 at
  * 1/2 of its height over a landscape video, center-cropped; video: 1/3 of its width at its own
  * aspect ratio); in the split layouts each fills
  * a half of the frame (center-cropped). The output lasts as long as the longer
