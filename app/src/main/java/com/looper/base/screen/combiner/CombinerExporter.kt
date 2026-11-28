@@ -68,7 +68,8 @@ private val PROGRESS_POLL_INTERVAL = 250.milliseconds
  * Composites two videos like the preview, in a [DualLayout]: one fills the frame and the
  * other sits in a movable window (1/3 of the width), or they are stacked / side by side. Every
  * video keeps its original aspect ratio. The output lasts as long as the longer video; the one
- * that ends first keeps showing its last frame until the end.
+ * that ends first keeps showing its last frame until the end, and its sound (if kept) is
+ * followed by silence.
  *
  * Built on Media3 Transformer. With several video sequences its compositor draws the first
  * sequence on top and takes the output timeline from it, so:
@@ -259,7 +260,8 @@ class CombinerExporter(private val context: Context) {
             }
             .build()
 
-        // Sequence 1: the first video (keeps its last frame by itself if shorter).
+        // Sequence 1: the first video (keeps its last frame by itself if shorter; its kept sound
+        // just ends, leaving silence until the end).
         val fullPresentation = Presentation.createForWidthAndHeight(
             fullSize.width,
             fullSize.height,

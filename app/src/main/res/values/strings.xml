@@ -91,6 +91,11 @@
     <string name="splash_open_reaction">Reaction video</string>
     <string name="splash_open_combiner">Video combiner</string>
 
+    <!-- Output video sound (reaction and video combiner) -->
+    <string name="dual_audio_fullscreen">Fullscreen</string>
+    <string name="dual_audio_window">Window</string>
+    <string name="dual_audio_both">Both</string>
+
     <!-- Reaction -->
     <string name="reaction_back">Back</string>
     <string name="reaction_select_background">Select Background Video</string>
@@ -103,9 +108,6 @@
     <string name="reaction_layout_split_vertical">Split top and bottom</string>
     <string name="reaction_layout_split_horizontal">Split side by side</string>
     <string name="reaction_layout_pip_custom">Movable reaction, long press to move</string>
-    <string name="reaction_audio_background">Original</string>
-    <string name="reaction_audio_reaction">Reaction</string>
-    <string name="reaction_audio_both">Both</string>
     <string name="reaction_saving">Saving video… %1$d%%</string>
     <string name="reaction_saved">Reaction video saved to gallery</string>
     <string name="reaction_export_failed">Couldn\'t save the reaction video</string>
@@ -124,9 +126,6 @@
     <string name="combiner_layout_split_vertical">Split top and bottom</string>
     <string name="combiner_layout_split_horizontal">Split side by side</string>
     <string name="combiner_layout_pip_custom">Movable overlay, long press to move</string>
-    <string name="combiner_audio_main">Original</string>
-    <string name="combiner_audio_overlay">Overlay</string>
-    <string name="combiner_audio_both">Both</string>
     <string name="combiner_saving">Saving video… %1$d%%</string>
     <string name="combiner_video_failed">Couldn\'t open this video</string>
     <string name="combiner_play_preview">Play preview</string>

@@ -44,7 +44,9 @@ interface IReactionRepository {
      * Composites [background] and the [reactionFile] recording like the preview, saves the video
      * into the gallery and deletes [reactionFile]. PiP layouts keep only the full-frame area of
      * the preview: the background's size when it is full frame, else [pipCanvasAspectRatio]
-     * (the preview stage's width / height). [onProgress] receives 0..100 on the main thread.
+     * (the preview stage's width / height). [audioMode] keeps the full-frame slot's and / or the
+     * window's sound, whichever video is in it; a kept sound shorter than the output is followed
+     * by silence. [onProgress] receives 0..100 on the main thread.
      */
     suspend fun exportReaction(
         background: PickedVideo,

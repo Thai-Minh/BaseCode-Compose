@@ -15,6 +15,7 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
+import androidx.camera.video.AudioSpec
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.PendingRecording
@@ -92,6 +93,7 @@ class ReactionRepositoryImpl(
                 )
             )
             .setAspectRatio(AspectRatio.RATIO_16_9)
+            .withEchoCancellation()
             .build()
         // Recorded like the (mirrored) preview, so the saved reaction matches the screen.
         val capture = VideoCapture.Builder(recorder)
@@ -223,3 +225,16 @@ class ReactionRepositoryImpl(
         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
 }
+
+/**
+ * Records the microphone with the voice communication source. Unlike the default camcorder
+ * source, it runs the platform's acoustic echo canceller (and noise suppressor), which takes the
+ * background playing through the speaker out of the recording. Otherwise, when both sounds are
+ * kept, the recorded copy of the background is heard as an echo of its own track.
+ *
+ * [Recorder.Builder.setAudioSource] is still library-restricted, but CameraX 1.6 hands the source
+ * to its AudioRecord as is.
+ */
+@SuppressLint("RestrictedApi")
+private fun Recorder.Builder.withEchoCancellation(): Recorder.Builder =
+    setAudioSource(AudioSpec.SOURCE_VOICE_COMMUNICATION)

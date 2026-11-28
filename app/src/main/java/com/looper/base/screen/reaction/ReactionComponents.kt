@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -27,9 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -57,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import com.looper.base.R
-import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.reaction.data.ReactionLayout
 import com.looper.base.screen.reaction.data.ReactionRect
@@ -278,43 +273,6 @@ private fun ArrangementOption(
                     )
                 }
             }
-        }
-    }
-}
-
-/** v1 / v2 / v1+v2 audio choice; [labelRes] names each mode for the screen. */
-@Composable
-internal fun AudioModeSelector(
-    selected: DualAudioMode,
-    enabled: Boolean,
-    labelRes: (DualAudioMode) -> Int,
-    onSelect: (DualAudioMode) -> Unit,
-) {
-    val segmentColors = SegmentedButtonDefaults.colors(
-        activeContainerColor = Color.White,
-        activeContentColor = Color.Black,
-        activeBorderColor = Color.White,
-        inactiveContainerColor = Color.Transparent,
-        inactiveContentColor = Color.White,
-        inactiveBorderColor = Color.White.copy(alpha = 0.5f),
-        disabledActiveContainerColor = Color.White.copy(alpha = 0.4f),
-        disabledActiveContentColor = Color.Black,
-        disabledActiveBorderColor = Color.White.copy(alpha = 0.4f),
-        disabledInactiveContainerColor = Color.Transparent,
-        disabledInactiveContentColor = Color.White.copy(alpha = 0.4f),
-        disabledInactiveBorderColor = Color.White.copy(alpha = 0.2f),
-    )
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        val modes = DualAudioMode.entries
-        modes.forEachIndexed { index, mode ->
-            SegmentedButton(
-                selected = mode == selected,
-                onClick = { onSelect(mode) },
-                shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                enabled = enabled,
-                colors = segmentColors,
-                label = { Text(text = stringResource(labelRes(mode)), maxLines = 1) },
-            )
         }
     }
 }

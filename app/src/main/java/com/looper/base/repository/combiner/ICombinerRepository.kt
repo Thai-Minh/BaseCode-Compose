@@ -15,8 +15,9 @@ interface ICombinerRepository {
     /**
      * Composites [mainVideo] and [overlayVideo] like the preview (the overlay is the full-frame
      * one when [overlayFullScreen]) and saves the result into the gallery. [audioMode] keeps
-     * the main (v1) and / or the overlay's (v2) sound, wherever each one is shown.
-     * [onProgress] receives 0..100 on the main thread.
+     * the full-frame slot's and / or the window's sound, whichever video is in it; a kept sound
+     * shorter than the output is followed by silence. [onProgress] receives 0..100 on the main
+     * thread.
      */
     suspend fun combine(
         mainVideo: CombinerVideo,

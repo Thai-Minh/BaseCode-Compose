@@ -62,6 +62,10 @@ class ReactionViewModel(
     /** Width / height of the preview stage: the PiP canvas, reused by the export. */
     private var stageAspectRatio = ReactionLayout.ASPECT_RATIO
 
+    init {
+        applyBackgroundVolume()
+    }
+
     // region User actions
 
     fun onBackgroundPicked(uri: Uri?) {
@@ -95,6 +99,8 @@ class ReactionViewModel(
     fun onSwapClick() {
         if (!uiState.value.canSwap) return
         uiState.update { it.copy(reactionWindowFullScreen = !it.reactionWindowFullScreen) }
+        // The kept sound follows the slots.
+        applyBackgroundVolume()
     }
 
     /** The preview stage was measured; PiP exports use the same canvas shape. */
@@ -117,6 +123,7 @@ class ReactionViewModel(
     fun onAudioModeSelected(mode: DualAudioMode) {
         if (!uiState.value.canEdit) return
         uiState.update { it.copy(audioMode = mode) }
+        applyBackgroundVolume()
     }
 
     fun onRecordClick() {
@@ -190,6 +197,20 @@ class ReactionViewModel(
     }
 
     private fun stopRecording() = repository.stopRecording()
+
+    /**
+     * The background plays aloud only if the export keeps its sound. The microphone picks up
+     * what the speaker plays, so a background heard while recording would end up in a reaction
+     * whose sound alone is kept. With both sounds kept it is heard: the recording's echo
+     * canceller takes it out, and the export lines up what is left with the background's own
+     * sound (see [EchoDelayEstimator]).
+     */
+    private fun applyBackgroundVolume() {
+        val state = uiState.value
+        // Not swapped: the background is in the full-frame slot.
+        val keepsBackground = state.audioMode.keeps(fullScreenSlot = !state.reactionWindowFullScreen)
+        player.volume = if (keepsBackground) 1f else 0f
+    }
 
     // endregion
 

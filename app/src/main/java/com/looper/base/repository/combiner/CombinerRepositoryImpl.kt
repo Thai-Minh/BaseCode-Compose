@@ -39,15 +39,12 @@ class CombinerRepositoryImpl(
         } else {
             mainVideo to overlayVideo
         }
-        // v1 = the main video's sound, v2 = the overlay's, wherever each one is shown.
-        val keepsMainAudio = audioMode.keepsMain
-        val keepsOverlayAudio = audioMode.keepsSecondary
-
+        // The kept sound follows the slot, whichever video is in it.
         val output = exporter.export(
             firstWidth = full.width,
             firstHeight = full.height,
-            full = full.toSource(if (overlayFullScreen) keepsOverlayAudio else keepsMainAudio),
-            window = window.toSource(if (overlayFullScreen) keepsMainAudio else keepsOverlayAudio),
+            full = full.toSource(keepAudio = audioMode.keepsFullScreen),
+            window = window.toSource(keepAudio = audioMode.keepsWindow),
             windowAspectRatio = window.aspectRatio,
             arrangement = arrangement,
             pipPosition = pipPosition,

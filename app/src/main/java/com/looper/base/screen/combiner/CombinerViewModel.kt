@@ -78,6 +78,8 @@ class CombinerViewModel(
     fun onSwapClick() {
         if (!uiState.value.canSwap) return
         uiState.update { it.copy(overlayFullScreen = !it.overlayFullScreen) }
+        // The kept sound follows the slots.
+        applyPreviewVolumes()
     }
 
     fun onArrangementSelected(arrangement: DualLayout) {
@@ -173,12 +175,16 @@ class CombinerViewModel(
 
     private fun pausePreview() = players.forEach { it.pause() }
 
-    /** The preview plays the sound the export will keep. */
+    /** The preview plays the sound the export will keep: the full-frame and / or window slot's. */
     private fun applyPreviewVolumes() {
-        val mode = uiState.value.audioMode
-        mainPlayer.volume = if (mode.keepsMain) 1f else 0f
-        overlayPlayer.volume = if (mode.keepsSecondary) 1f else 0f
+        val state = uiState.value
+        val mainIsFullScreen = !state.overlayFullScreen
+        mainPlayer.volume = state.audioMode.volumeFor(fullScreenSlot = mainIsFullScreen)
+        overlayPlayer.volume = state.audioMode.volumeFor(fullScreenSlot = !mainIsFullScreen)
     }
+
+    private fun DualAudioMode.volumeFor(fullScreenSlot: Boolean): Float =
+        if (keeps(fullScreenSlot)) 1f else 0f
 
     override fun onCleared() {
         players.forEachIndexed { index, player ->

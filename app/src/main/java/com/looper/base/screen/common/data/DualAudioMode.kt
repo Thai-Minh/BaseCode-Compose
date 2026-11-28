@@ -1,20 +1,25 @@
 package com.looper.base.screen.common.data
 
 /**
- * Which audio ends up in a video made of two videos. Shared by the reaction and video combiner
- * screens; each screen names the options itself.
+ * Which sound ends up in a video made of two videos, shared by the reaction and video combiner
+ * screens. It follows the slots, whichever video is in them (a swap swaps whose sound is kept):
+ * the full-frame slot is the full frame of the PiP layout and the top / left half of the split
+ * layouts, the window slot is the PiP window and the bottom / right half.
  *
- * "Main" is the original video (reaction: the background, combiner: the main video) and
- * "secondary" the added one (reaction: the camera recording, combiner: the overlay), wherever
- * each one is placed by the [DualLayout] or a swap.
+ * A kept sound that ends before the output (its video is the shorter one) is followed by silence
+ * until the end.
  */
-enum class DualAudioMode(val keepsMain: Boolean, val keepsSecondary: Boolean) {
-    /** v1: only the main video's sound. */
-    Main(keepsMain = true, keepsSecondary = false),
+enum class DualAudioMode(val keepsFullScreen: Boolean, val keepsWindow: Boolean) {
+    /** Only the full-frame slot's sound. */
+    FullScreen(keepsFullScreen = true, keepsWindow = false),
 
-    /** v2: only the secondary video's sound. */
-    Secondary(keepsMain = false, keepsSecondary = true),
+    /** Only the window slot's sound. */
+    Window(keepsFullScreen = false, keepsWindow = true),
 
-    /** v1 + v2 mixed. */
-    Both(keepsMain = true, keepsSecondary = true),
+    /** Both sounds mixed. */
+    Both(keepsFullScreen = true, keepsWindow = true),
+    ;
+
+    /** Whether the sound of the full-frame slot ([fullScreenSlot]) or of the window is kept. */
+    fun keeps(fullScreenSlot: Boolean): Boolean = if (fullScreenSlot) keepsFullScreen else keepsWindow
 }

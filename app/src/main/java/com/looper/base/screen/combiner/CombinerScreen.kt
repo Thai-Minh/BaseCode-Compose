@@ -62,6 +62,7 @@ import com.looper.base.screen.combiner.data.CombinerUiState
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.common.data.PipPosition
+import com.looper.base.screen.common.ui.DualAudioModeSelector
 import com.looper.base.screen.common.ui.dragAfterLongPress
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -338,7 +339,7 @@ private fun CombinerControls(
             enabled = state.canEdit,
             onSelect = onArrangementSelected,
         )
-        AudioModeSelector(
+        DualAudioModeSelector(
             selected = state.audioMode,
             enabled = state.canEdit,
             onSelect = onAudioModeSelected,

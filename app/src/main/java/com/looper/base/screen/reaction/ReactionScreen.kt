@@ -60,6 +60,7 @@ import com.looper.base.R
 import com.looper.base.screen.common.data.DualAudioMode
 import com.looper.base.screen.common.data.DualLayout
 import com.looper.base.screen.common.data.PipPosition
+import com.looper.base.screen.common.ui.DualAudioModeSelector
 import com.looper.base.screen.common.ui.dragAfterLongPress
 import com.looper.base.screen.reaction.data.ReactionEffect
 import com.looper.base.screen.reaction.data.ReactionLayout
@@ -389,10 +390,9 @@ private fun ReactionControls(
             enabled = state.canEdit,
             onSelect = onArrangementSelected,
         )
-        AudioModeSelector(
+        DualAudioModeSelector(
             selected = state.audioMode,
             enabled = state.canEdit,
-            labelRes = { it.labelRes() },
             onSelect = onAudioModeSelected,
         )
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -440,12 +440,6 @@ private fun RecordButton(isRecording: Boolean, enabled: Boolean, onClick: () -> 
             }
         )
     }
-}
-
-private fun DualAudioMode.labelRes(): Int = when (this) {
-    DualAudioMode.Main -> R.string.reaction_audio_background
-    DualAudioMode.Secondary -> R.string.reaction_audio_reaction
-    DualAudioMode.Both -> R.string.reaction_audio_both
 }
 
 private fun formatDuration(durationMs: Long): String {
